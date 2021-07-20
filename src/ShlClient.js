@@ -1,4 +1,5 @@
 const axios = require('axios')
+const Mutex = require('async-mutex').Mutex
 const Token = require('./Token.js')
 
 const times = {}
@@ -26,6 +27,7 @@ class SHL {
       this.getToken = Token.createTokenGetter(() => this.login(clientId, clientSecret))
 
       this.lastCall = new Date()
+      this.mutex = new Mutex()
    }
 
    login(client_id, client_secret) {
@@ -60,22 +62,27 @@ class SHL {
    
    get(url) {
       const needsAuth = !this.isAbsolut(url)
-      return (needsAuth ? this.getAuthHeader() : Promise.resolve())
-         .then(config => this.makeCall(axios.get(this.getUrl(url), config)))
+      const configGetter = (needsAuth ? this.getAuthHeader() : Promise.resolve())
+      return configGetter
+         .then(config => this.makeCall(() => axios.get(this.getUrl(url), config)))
    }
    
-   async makeCall(call) {
-      const timeSinceLastCall = new Date() - this.lastCall
-      if (timeSinceLastCall < MIN_TIME_BETWEEN) {
-         console.log('[SHL CLIENT] wait for ' + timeSinceLastCall + ' ms')
-         await new Promise(r => setTimeout(r, MIN_TIME_BETWEEN - timeSinceLastCall))
-      }
-      return call
-         .then(rsp => rsp.data)
-         .catch(error => console.error(`Failed:`, error.toString()))
-         .finally(() => {
-            this.lastCall = new Date()
-         })
+   makeCall(call) {
+      return this.mutex.runExclusive(async () => {
+         const timeSinceLastCall = new Date() - this.lastCall
+         const timeDiff = MIN_TIME_BETWEEN - timeSinceLastCall
+         if (timeDiff > 0) {
+            console.log('[SHL CLIENT] wait for ' + timeDiff + ' ms')
+            await new Promise(r => setTimeout(r, timeDiff))
+            console.log('[SHL CLIENT] waited for ' + timeDiff + ' ms')
+         }
+         return call()
+            .then(rsp => rsp.data)
+            .finally(() => {
+               this.lastCall = new Date()
+            })
+            .catch(error => console.error(`Failed:`, error.toString()))
+      })
    }
 
    getUrl(url) {

@@ -48,7 +48,7 @@ function gameLoop() {
       .then(liveGamesService.update)
       .then(liveGames => {
          var delay = liveGames.size > 0 ? 3 : 30
-         setInterval(gameLoop, delay * 1000)
+         setTimeout(gameLoop, delay * 1000)
       })
 }
 
