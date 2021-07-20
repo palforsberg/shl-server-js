@@ -1,43 +1,63 @@
 const Db = require('./Db.js')
-const DbObject = require('./DbObject.js')
 const { SHL } = require('./ShlClient.js')
+const Service = require('./Service.js')
 
 const clientId = process.argv[2]
 const clientSecret = process.argv[3]
 const shl = new SHL(clientId, clientSecret)
 
-const LIVE_CHECK_DELAY = 1000 * 10
+const currentSeason = 2021
 
-const dbGames = DbObject.extend(Db.create('games'), () => shl.getGames(2021))
-const dbLiveGames = DbObject.extend(Db.create('live_games'), () => getCachedGames().then(getLiveGames))
-const dbStandings = DbObject.extend(Db.create('standings'), shl.getStandings)
-const dbOldGames = DbObject.extend(Db.create('games_2020'), () => shl.getGames(2020))
+const standingsService = Service.create(
+   'standings',
+   () => shl.getStandings(),
+   10 * 60)
 
-function gameLoop() {
-   dbStandings.readCachedDbObject(60)
-   dbGames.readCachedDbObject(10)
-   dbOldGames.readCachedDbObject(60)
-   dbLiveGames.readCachedDbObject(1).then(games => {
-      getGameStats(games.data).then(stats => console.log('stats ', JSON.stringify(stats, null, 2)))
-   })
+const liveGamesService = Service.create(
+   'live_games',
+   () => gamesService.db.read().then(getLiveGames))
+
+const serviceForSeason = (s, expiry = 0) => Service.create(
+      'games_' + s,
+      () => shl.getGames(s),
+      expiry)
+
+const gamesService = serviceForSeason(currentSeason)
+
+const oldSeasons = []
+for (let i = currentSeason - 4; i < currentSeason; i++) {
+   oldSeasons.push(serviceForSeason(i, -1))
 }
 
-function getGameStats(games) {
-   return Promise.all(games.map(p => shl.getGameStats(p.game_uuid, p.game_id)))
-      .then(games => {
-         return games.map(g => g.recaps.gameRecap)
+/**
+ * Get games for 4 old seasons if isn't stored already
+ * 
+ * Live loop:
+ * Get current season
+ * Find all live games
+ * Compare live games to previous cycle, find started games, finished games, new goals
+ */
+function main() {
+   oldSeasons.forEach(e => e.update())
+   gameLoop()
+}
+
+function gameLoop() {
+   gamesService.update()
+      .then(standingsService.update)
+      .then(liveGamesService.update)
+      .then(liveGames => {
+         var delay = liveGames.size > 0 ? 3 : 30
+         setInterval(gameLoop, delay * 1000)
       })
 }
 
-function getCachedGames() {
-   return dbGames.readDbObject().then(data => data.data)
-}
-
 function getLiveGames(games) {
+   if (!games) return []
    const now = new Date()
    const hasHappened = date => new Date(date) < now
    const isLive = g => !g.played && hasHappened(g.start_date_time)
    return games.filter(isLive)
 }
 
-setInterval(gameLoop, LIVE_CHECK_DELAY)
+main()

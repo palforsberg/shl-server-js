@@ -3,6 +3,7 @@ const Token = require('./Token.js')
 
 const times = {}
 const basePath = "https://openapi.shl.se/"
+const MIN_TIME_BETWEEN = 3 * 1000;
 
 const normalizeUrl = url => url.replace(basePath, '')
 axios.interceptors.request.use(request => {
@@ -23,6 +24,8 @@ class SHL {
       this.login = this.login.bind(this)
       this.getStandings = this.getStandings.bind(this)
       this.getToken = Token.createTokenGetter(() => this.login(clientId, clientSecret))
+
+      this.lastCall = new Date()
    }
 
    login(client_id, client_secret) {
@@ -61,10 +64,18 @@ class SHL {
          .then(config => this.makeCall(axios.get(this.getUrl(url), config)))
    }
    
-   makeCall(call) {
+   async makeCall(call) {
+      const timeSinceLastCall = new Date() - this.lastCall
+      if (timeSinceLastCall < MIN_TIME_BETWEEN) {
+         console.log('[SHL CLIENT] wait for ' + timeSinceLastCall + ' ms')
+         await new Promise(r => setTimeout(r, MIN_TIME_BETWEEN - timeSinceLastCall))
+      }
       return call
          .then(rsp => rsp.data)
          .catch(error => console.error(`Failed:`, error.toString()))
+         .finally(() => {
+            this.lastCall = new Date()
+         })
    }
 
    getUrl(url) {

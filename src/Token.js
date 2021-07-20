@@ -1,9 +1,10 @@
-const Db = require('./Db.js')
-const DbObject = require('./DbObject.js')
+const Service = require('./Service.js')
 
-function createTokenGetter(service, expiresIn = 3600*1000) {
-   const db = DbObject.extend(Db.create('token'), service)
-   return () => db.readCachedDbObject(expiresIn).then(t => t.data.access_token)
+function createTokenGetter(service, expiresIn = 3600) {
+   const s = Service.create('token', service, expiresIn)
+   return () => s.update().then(t => {
+      return t?.access_token
+   })
 }
 
 module.exports.createTokenGetter = createTokenGetter

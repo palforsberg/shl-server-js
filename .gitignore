@@ -2,3 +2,5 @@ node_modules
 client_secret.js
 db
 deployment
+.vscode
+.DS_Store
