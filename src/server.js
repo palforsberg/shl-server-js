@@ -1,6 +1,7 @@
 const Db = require('./Db.js')
 const { SHL } = require('./ShlClient.js')
 const Service = require('./Service.js')
+const GameComparer = require('./GameComparer.js')
 
 const clientId = process.argv[2]
 const clientSecret = process.argv[3]
@@ -43,13 +44,16 @@ function main() {
 }
 
 function gameLoop() {
-   gamesService.update()
-      .then(standingsService.update)
-      .then(liveGamesService.update)
-      .then(liveGames => {
-         var delay = liveGames.size > 0 ? 3 : 30
-         setTimeout(gameLoop, delay * 1000)
-      })
+   liveGamesService.db.read().then(oldLiveGames => {
+      gamesService.update()
+         .then(standingsService.update)
+         .then(liveGamesService.update)
+         .then(liveGames => {
+            GameComparer.compare(oldLiveGames, liveGames)
+            var delay = liveGames.size > 0 ? 3 : 30
+            setTimeout(gameLoop, delay * 1000)
+         })
+   })
 }
 
 function getLiveGames(games) {
