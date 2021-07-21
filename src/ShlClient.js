@@ -33,7 +33,7 @@ class SHL {
    login(client_id, client_secret) {
       let body = `client_id=${client_id}&client_secret=${client_secret}&grant_type=client_credentials`
       const config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      return this.makeCall(axios.post(basePath + "oauth2/token", body, config))
+      return this.makeCall(() => axios.post(basePath + "oauth2/token", body, config))
    }
    
    getGames(season) {

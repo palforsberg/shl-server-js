@@ -85,7 +85,6 @@ class Event {
         return new Event('scored', this.getInfo(game))
     }
 
-
     static getInfo(game) {
         return {
             home_team_code: game.home_team_code,

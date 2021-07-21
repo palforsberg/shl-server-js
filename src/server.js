@@ -2,6 +2,7 @@ const Db = require('./Db.js')
 const { SHL } = require('./ShlClient.js')
 const Service = require('./Service.js')
 const GameComparer = require('./GameComparer.js')
+const Notifier = require('./Notifier.js')
 
 const clientId = process.argv[2]
 const clientSecret = process.argv[3]
@@ -22,6 +23,8 @@ const serviceForSeason = (s, expiry = 0) => Service.create(
       'games_' + s,
       () => shl.getGames(s),
       expiry)
+
+const users = Db.create('users')
 
 const gamesService = serviceForSeason(currentSeason)
 
@@ -49,7 +52,9 @@ function gameLoop() {
          .then(standingsService.update)
          .then(liveGamesService.update)
          .then(liveGames => {
-            GameComparer.compare(oldLiveGames, liveGames)
+            const events = GameComparer.compare(oldLiveGames, liveGames)
+            users.read().then(us => Notifier.notify(events, us))
+
             var delay = liveGames.size > 0 ? 3 : 30
             setTimeout(gameLoop, delay * 1000)
          })
@@ -57,11 +62,10 @@ function gameLoop() {
 }
 
 function getLiveGames(games) {
-   if (!games) return []
    const now = new Date()
    const hasHappened = date => new Date(date) < now
    const isLive = g => !g.played && hasHappened(g.start_date_time)
-   return games.filter(isLive)
+   return games?.filter(isLive) || []
 }
 
 main()
