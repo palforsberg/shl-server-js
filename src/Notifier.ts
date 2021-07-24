@@ -4,7 +4,7 @@ import { User } from './models/User'
 /**
  * For each event, get a list of users to send notification to.
  */
-function notify(events: GameEvent[], users: User[] = []) {
+function notify(events: GameEvent[], users: User[]) {
     events.forEach(e => {
         users
             .filter(u => userHasSubscribed(u, e.info.home_team_code, e.info.away_team_code))

@@ -15,7 +15,7 @@ axios.interceptors.request.use((request: Req) => {
    return request
 })
 
-axios.interceptors.response.use((response: RspData) => {
+axios.interceptors.response.use((response: RspData<any>) => {
    const duration = new Date().getTime() - times[response.config.url].getTime()
    console.log('[EXTERNAL] RSP', normalizeUrl(response.config.url), duration, 'ms')
    return response
@@ -25,8 +25,8 @@ interface Req {
    method: string,
    url: string,
 }
-interface RspData {
-   data: Object,
+interface RspData<T> {
+   data: T,
    config: {
       url: string,
    }
@@ -47,7 +47,7 @@ class SHL {
       this.mutex = new Mutex()
    }
 
-   login(client_id: string, client_secret: string): Promise<Object> {
+   login(client_id: string, client_secret: string): Promise<any> {
       let body = `client_id=${client_id}&client_secret=${client_secret}&grant_type=client_credentials`
       const config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       return this.makeCall(() => axios.post(basePath + "oauth2/token", body, config))
@@ -78,22 +78,22 @@ class SHL {
    }
    
    get<T>(url: string): Promise<T>  {
-      const needsAuth = !this.isAbsolut(url)
-      const configGetter = (needsAuth ? this.getAuthHeader() : Promise.resolve())
-      return configGetter
-         .then(config => this.makeCall(() => axios.get(this.getUrl(url), config)))
-   }
-   
-   makeCall<T>(call: () => Promise<RspData>): Promise<T>  {
       return this.mutex.runExclusive(async () => {
          await this.wait()
-         return call()
-            .then(rsp => rsp.data as T)
-            .finally(() => {
-               this.lastCall = new Date()
-            })
-            .catch(error => console.error(`Failed:`, error.toString()))
+         const needsAuth = !this.isAbsolut(url)
+         const configGetter = (needsAuth ? this.getAuthHeader() : Promise.resolve())
+         return configGetter
+            .then(config => this.makeCall(() => axios.get(this.getUrl(url), config)))
       })
+   }
+   
+   makeCall<T>(call: () => Promise<RspData<T>>): Promise<T | void>  {
+      return call()
+         .then(rsp => rsp.data as T)
+         .finally(() => {
+            this.lastCall = new Date()
+         })
+         .catch(error => console.error(`Failed:`, error.toString()))
    }
 
    async wait() {
