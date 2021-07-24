@@ -1,7 +1,10 @@
-const Db = require('./Db.js')
+
+import { Db } from './Db'
+import { Game } from './models/Game'
+import { User } from './models/User'
 const { SHL } = require('./ShlClient.js')
-const Service = require('./Service.js')
-const GameComparer = require('./GameComparer.js')
+import { Service } from './Service'
+import * as GameComparer from './GameComparer'
 const Notifier = require('./Notifier.js')
 
 const clientId = process.argv[2]
@@ -10,25 +13,25 @@ const shl = new SHL(clientId, clientSecret)
 
 const currentSeason = 2021
 
-const standingsService = Service.create(
+const standingsService = new Service<Game[]>(
    'standings',
-   () => shl.getStandings(),
+   () => shl.getStandings(currentSeason),
    10 * 60)
 
-const liveGamesService = Service.create(
+const liveGamesService = new Service<Game[]>(
    'live_games',
    () => gamesService.db.read().then(getLiveGames))
 
-const serviceForSeason = (s, expiry = 0) => Service.create(
+const serviceForSeason = (s: number, expiry = 0) => new Service<Game[]>(
       'games_' + s,
       () => shl.getGames(s),
       expiry)
 
-const users = Db.create('users')
+const users = new Db<User[]>('users')
 
-const gamesService = serviceForSeason(currentSeason)
+const gamesService: Service<Game[]> = serviceForSeason(currentSeason)
 
-const oldSeasons = []
+const oldSeasons: Service<Game[]>[] = []
 for (let i = currentSeason - 4; i < currentSeason; i++) {
    oldSeasons.push(serviceForSeason(i, -1))
 }
@@ -51,20 +54,20 @@ function gameLoop() {
       gamesService.update()
          .then(standingsService.update)
          .then(liveGamesService.update)
-         .then(liveGames => {
+         .then((liveGames: Game[]) => {
             const events = GameComparer.compare(oldLiveGames, liveGames)
             users.read().then(us => Notifier.notify(events, us))
 
-            var delay = liveGames.size > 0 ? 3 : 30
+            var delay = liveGames.length > 0 ? 3 : 30
             setTimeout(gameLoop, delay * 1000)
          })
    })
 }
 
-function getLiveGames(games) {
+function getLiveGames(games: Game[]): Game[] {
    const now = new Date()
-   const hasHappened = date => new Date(date) < now
-   const isLive = g => !g.played && hasHappened(g.start_date_time)
+   const hasHappened = (date: Date) => new Date(date) < now
+   const isLive = (g: Game) => !g.played && hasHappened(g.start_date_time)
    return games?.filter(isLive) || []
 }
 

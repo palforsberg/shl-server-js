@@ -1,7 +1,8 @@
-const GameComparer = require('../src/GameComparer.js')
+import { Game } from '../src/models/Game'
+import * as GameComparer from '../src/GameComparer'
 
 test('finds new game', () => {
-    const oldGames = []
+    const oldGames: Game[] = []
     const newGames = [getGame('1')]
     const result = GameComparer.compare(oldGames, newGames)
     expect(result[0].type).toBe('began')
@@ -9,7 +10,7 @@ test('finds new game', () => {
 
 test('finds ended game', () => {
     const oldGames = [getGame('1')]
-    const newGames = []
+    const newGames: Game[] = []
     const result = GameComparer.compare(oldGames, newGames)
     expect(result[0].type).toBe('ended')
 });
@@ -38,12 +39,14 @@ test('finds nothing', () => {
 });
 
 
-function getGame(id) {
+function getGame(id: string): Game {
     return {
         game_uuid: id,
         home_team_result: 0,
         home_team_code: 'LHF',
         away_team_result: 0,
         away_team_code: 'FBK',
+        start_date_time: new Date(),
+        played: false,
     }
 }

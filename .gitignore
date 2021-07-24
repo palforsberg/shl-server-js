@@ -4,3 +4,4 @@ db
 deployment
 .vscode
 .DS_Store
+dist
