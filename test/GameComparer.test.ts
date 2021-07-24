@@ -42,6 +42,7 @@ test('finds nothing', () => {
 function getGame(id: string): Game {
     return {
         game_uuid: id,
+        game_id: 123,
         home_team_result: 0,
         home_team_code: 'LHF',
         away_team_result: 0,

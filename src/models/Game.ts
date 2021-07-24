@@ -28,6 +28,7 @@ interface Game {
     away_team_code: string,
     away_team_result: number,
     game_uuid: string,
+    game_id: number,
     played: boolean,
     start_date_time: Date,
 }
