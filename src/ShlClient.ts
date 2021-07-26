@@ -54,37 +54,36 @@ class SHL {
    }
    
    getGames(season: string): Promise<Game[]> {
-      return this.get("seasons/" + season + "/games.json")
+      return this.getWithToken("seasons/" + season + "/games.json")
    }
 
-   getGame(season: string, gameUuid: string): Promise<Game> {
-      return this.get(`/seasons/${season}/games/${gameUuid}.json`)
-   }
-
-   getGameStats(gameUuid: string, gameId: string): Promise<Object>  {
-      return this.get(`https://www.shl.se/gamecenter/${gameUuid}/statistics/${gameId}.json`)
+   getGameStats(game_uuid: string, game_id: string): Promise<GameStats>  {
+      return this.get(`https://www.shl.se/gamecenter/${game_uuid}/statistics/${game_id}.json`)
    }
 
    getStandings(season: number): Promise<Standing[]>  {
-      return this.get(`/seasons/${season}/statistics/teams/standings.json`)
+      return this.getWithToken(`/seasons/${season}/statistics/teams/standings.json`)
    }
    
    getTeams(): Promise<Object>  {
-      return this.get('teams.json')
+      return this.getWithToken('teams.json')
    }
 
    getTeam(team: string): Promise<Object>  {
-      return this.get(`teams/${team}.json`)
+      return this.getWithToken(`teams/${team}.json`)
    }
    
-   get<T>(url: string): Promise<T>  {
+   getWithToken<T>(url: string): Promise<T>  {
       return this.mutex.runExclusive(async () => {
-         await this.wait()
-         const needsAuth = !this.isAbsolut(url)
-         const configGetter = (needsAuth ? this.getAuthHeader() : Promise.resolve())
-         return configGetter
+         await this.wait(MIN_TIME_BETWEEN)
+         return this.getAuthHeader()
             .then(config => this.makeCall(() => axios.get(this.getUrl(url), config)))
       })
+   }
+      
+   get<T>(url: string): Promise<T>  {
+      return this.mutex.runExclusive(() => 
+         this.wait(1).then(() => this.makeCall(() => axios.get(this.getUrl(url)))))
    }
    
    makeCall<T>(call: () => Promise<RspData<T>>): Promise<T | void>  {
@@ -96,9 +95,9 @@ class SHL {
          .catch(error => console.error(`Failed:`, error.toString()))
    }
 
-   async wait() {
+   async wait(time = MIN_TIME_BETWEEN) {
       const timeSinceLastCall = new Date().getTime() - this.lastCall.getTime()
-      const timeDiff = MIN_TIME_BETWEEN - timeSinceLastCall
+      const timeDiff = time - timeSinceLastCall
       if (timeDiff > 0) {
          console.log('[SHL CLIENT] wait for ' + timeDiff + ' ms')
          await new Promise(r => setTimeout(r, timeDiff))

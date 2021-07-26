@@ -5,10 +5,12 @@ interface FileError {
 }
 class Db<T> {
    in_mem?: T
+   hasReadFromDb: boolean
    name: string
 
    constructor(name: string) {
       this.name = name
+      this.hasReadFromDb = false
    }
 
    write(data: T): Promise<T> {
@@ -18,10 +20,11 @@ class Db<T> {
    }
    
    read(): Promise<T> {
-      if (this.in_mem !== undefined) {
-         return Promise.resolve(this.in_mem)
+      if (this.hasReadFromDb) {
+         return Promise.resolve(this.in_mem!)
       }
       console.log(`[DB] read ${this.name} from file`)
+      this.hasReadFromDb = true
       return fs.promises.readFile(getPath(this.name))
          .then(JSON.parse)
          .then((data: T) => this.storeInMemory(data))
@@ -30,6 +33,7 @@ class Db<T> {
 
    storeInMemory(data: T): T {
       this.in_mem = data
+      this.hasReadFromDb = true
       return data
    }
 }

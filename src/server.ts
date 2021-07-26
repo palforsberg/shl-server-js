@@ -7,6 +7,7 @@ import { Service } from './Service'
 import { Standing } from './models/Standing'
 import express from 'express'
 import * as GameComparer from './GameComparer'
+import { GameStatsService } from './GameStatsService'
 const Notifier = require('./Notifier.js')
 
 const port = process.argv[2]
@@ -14,13 +15,15 @@ const clientId = process.argv[3]
 const clientSecret = process.argv[4]
 const shl = new SHL(clientId, clientSecret)
 
-const currentSeason: number = 2021
+const currentSeason = 2021
 
 const standingsForSeason = (s: number) =>
    new Service<Standing[]>(`standings_${s}`, () => shl.getStandings(s), s == currentSeason ? 10 * 60 : -1)
 
 const serviceForSeason = (s: number) =>
    new Service<Game[]>(`games_${s}`, () => shl.getGames(s), s == currentSeason ? 0 : -1)
+
+const statsService = new GameStatsService(shl)
 
 const liveGamesService = new Service<Game[]>(
    'live_games', () => seasons[currentSeason].db.read().then(getLiveGames))
@@ -52,6 +55,15 @@ app.get('/games/:season', (req, res) => {
    season.db.read().then(s => res.send(JSON.stringify(s))) 
 })
 
+app.get('/game/:game_uuid/:game_id', (req, res) => {
+   statsService.get(req.params.game_uuid, req.params.game_id).then(stats => {
+      if (stats == undefined) {
+         return res.status(404).send('Could not find game')
+      }
+      return res.send(JSON.stringify(stats))
+   })
+})
+
 app.get('/standings/:season', (req, res) => {
    const standing = standings[parseInt(req.params.season)]
    if (!standing) {
@@ -70,22 +82,32 @@ function main() {
    Object.entries(seasons).filter(e => parseInt(e[0]) != currentSeason).forEach(e => e[1].update())
    Object.entries(standings).filter(e => parseInt(e[0]) != currentSeason).forEach(e => e[1].update())
 
-   gameLoop()
+   // gameLoop()
 }
 
 function gameLoop() {
-   liveGamesService.db.read().then(oldLiveGames => {
+   console.log('[LOOP] ******* Begin ********')
+   gameJob()
+      .then(liveGamesService.db.read)
+      .then(liveGames => {
+         var delay = liveGames.length > 0 ? 0 : 30
+         setTimeout(gameLoop, delay * 1000)
+         console.log('[LOOP] ******* End **********')
+      })
+}
+
+function gameJob() {
+   return liveGamesService.db.read().then(oldLiveGames => 
       seasons[currentSeason].update()
          .then(standings[currentSeason].update)
          .then(liveGamesService.update)
          .then(liveGames => {
             const events = GameComparer.compare(oldLiveGames || [], liveGames)
-            users.read().then(us => Notifier.notify(events, us || []))
-
-            var delay = liveGames.length > 0 ? 3 : 30
-            setTimeout(gameLoop, delay * 1000)
-         })
-   })
+            return users.read().then(us => {
+               Notifier.notify(events, us || [])
+               return Promise.resolve()
+            }).then(() => Promise.all(liveGames.map(e => statsService.update(e))))
+         }))
 }
 
 main()
