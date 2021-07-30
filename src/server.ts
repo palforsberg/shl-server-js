@@ -52,7 +52,7 @@ app.get('/games/:season', (req, res) => {
    if (!season) {
       return res.status(404).send('Could not find season ' + req.params.season)
    }
-   season.db.read().then(s => res.send(JSON.stringify(s))) 
+   season.db.read().then(s => res.send(JSON.stringify(s)))
 })
 
 app.get('/game/:game_uuid/:game_id', (req, res) => {
@@ -69,7 +69,24 @@ app.get('/standings/:season', (req, res) => {
    if (!standing) {
       return res.status(404).send('Could not find season ' + req.params.season)
    }
-   standing.db.read().then(s => res.send(JSON.stringify(s))) 
+   standing.db.read().then(s => {
+      if (s.length == 0) {
+         const season = seasons[parseInt(req.params.season)]
+         return season.db.read().then(g => {
+            var teams: Set<string> = new Set()
+            const getStanding: ((a: string) => Standing) = team_code => ({
+               gp: 0,
+               team_code,
+               points: 0,
+               rank: 1,
+            })
+            g?.forEach(e => teams.add(e.home_team_code))
+            return res.send(JSON.stringify(Array.from(teams).map(getStanding)))
+         }) 
+      } else {
+         return res.send(JSON.stringify(s))
+      }
+   }) 
 })
 
 app.get('/users', (req, res) => {
@@ -79,8 +96,8 @@ app.get('/users', (req, res) => {
 function main() {
    app.listen(port, () => console.log(`[REST]: Server is running at https://localhost:${port}`))
 
-   Object.entries(seasons).filter(e => parseInt(e[0]) != currentSeason).forEach(e => e[1].update())
-   Object.entries(standings).filter(e => parseInt(e[0]) != currentSeason).forEach(e => e[1].update())
+   // Object.entries(seasons).filter(e => parseInt(e[0]) != currentSeason).forEach(e => e[1].update())
+   // Object.entries(standings).filter(e => parseInt(e[0]) != currentSeason).forEach(e => e[1].update())
 
    // gameLoop()
 }

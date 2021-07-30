@@ -12,8 +12,10 @@ class Service<T> {
    update: () => Promise<T>
 
    constructor(name: string, service: () => Promise<T>, expiryDelta = 0) {
+      this.fromData = this.fromData.bind(this)
+      this.fromDb = this.fromDb.bind(this)
       this.db = create(name, this.fromData, this.fromDb)
-      this.service = service
+      this.service = service.bind(this)
       this.update = () => this.db.db.read().then((wrapped: WrappedObject<T>) => {
 
          const hasExpired = (delta: number) =>
@@ -27,12 +29,12 @@ class Service<T> {
          return wrapped.data
       })
    }
-   fromData(data: T): WrappedObject<T> {
-      return { timestamp: new Date().toString(), data }
+   fromData(data: T): Promise<WrappedObject<T>> {
+      return Promise.resolve({ timestamp: new Date().toString(), data })
    }
    
-   fromDb(dbObject: WrappedObject<T>): T  {
-      return dbObject?.data
+   fromDb(dbObject: WrappedObject<T>): Promise<T>  {
+      return Promise.resolve(dbObject?.data)
    }
 }
 

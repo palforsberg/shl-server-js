@@ -1,4 +1,43 @@
+/**
+ * Stats of a single game.
+ */
+
+interface GameStats {
+    recaps: {
+        0: Period,
+        1: Period,
+        2: Period,
+        gameRecap: Period,
+    },
+    gameState: string,
+    playersByTeam?: [],
+}
+
+interface Period {
+    periodNumber: number,
+    awayG: number,
+    homeG: number,
+    awayHits: number,
+    homeHits: number,
+    awaySOG: number,
+    homeSOG: number,
+
+    /**
+     * PIM : Penalty Infraction Minutes
+     */
+    homePIM: number,
+    awayPIM: number,
+
+    /**
+     * FOW : Face Offs Won
+     */
+    homeFOW: number,
+    awayFOW: number,
+}
+
 /** example
+ * SPG: Shots Past Goal
+ * GA: Goals Against
  * {
   playersByTeam: {
     RBK: { GK: [Array], players: [Array] },
@@ -220,24 +259,3 @@
   gameState: 'GameEnded'
 }
 */
-
-interface GameStats {
-    recaps: {
-        0: Period,
-        1: Period,
-        2: Period,
-        gameRecap: Period,
-    },
-    gameState: string,
-    playersByTeam?: [],
-}
-
-interface Period {
-    periodNumber: number,
-    awayG: number,
-    homeG: number,
-    awayHits: number,
-    homeHits: number,
-    awaySOG: number,
-    homeSOG: number,
-}

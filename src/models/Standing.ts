@@ -28,12 +28,10 @@
  */
 
 interface Standing {
-    gp: number,
-    team: {
-        code: string,
-        id: string,
-    }
+    gp: number, 
     team_code: string,
+    points: number,
+    rank: number,
 }
 
 export {
