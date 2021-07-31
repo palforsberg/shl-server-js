@@ -8,6 +8,7 @@ import { Standing } from './models/Standing'
 import express from 'express'
 import * as GameComparer from './GameComparer'
 import { GameStatsService } from './GameStatsService'
+import { TeamsService } from './TeamsService'
 const Notifier = require('./Notifier.js')
 
 const port = process.argv[2]
@@ -17,6 +18,7 @@ const shl = new SHL(clientId, clientSecret)
 
 const currentSeason = 2021
 
+const teamsService = new TeamsService()
 const standingsForSeason = (s: number) =>
    new Service<Standing[]>(`standings_${s}`, () => shl.getStandings(s), s == currentSeason ? 10 * 60 : -1)
 
@@ -91,6 +93,11 @@ app.get('/standings/:season', (req, res) => {
 
 app.get('/users', (req, res) => {
    res.send(JSON.stringify(users.read()))
+})
+
+app.get('/teams', (req, res) => {
+   const teams = teamsService.db.read()
+   teams.then(e => res.send(JSON.stringify(e)))
 })
 
 function main() {
