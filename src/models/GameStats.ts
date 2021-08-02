@@ -4,10 +4,10 @@
 
 interface GameStats {
     recaps: {
-        0: Period,
-        1: Period,
-        2: Period,
-        gameRecap: Period,
+        0?: Period,
+        1?: Period,
+        2?: Period,
+        gameRecap?: Period,
     },
     gameState: string,
     playersByTeam?: [],

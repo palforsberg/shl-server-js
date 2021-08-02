@@ -22,9 +22,8 @@ class GameStatsService {
                 return Promise.resolve(undefined)
             }
             return this.db.read().then(old => {
-                delete stats.playersByTeam
                 const toWrite = old || {}
-                toWrite[game_uuid] = stats
+                toWrite[game_uuid] = this.normalize(stats)
 
                 return this.db.write(toWrite).then(e => stats)
             })
@@ -40,6 +39,15 @@ class GameStatsService {
             return this.updateGame(game_uuid, game_id)
         })
     } 
+
+    private normalize(stats: GameStats): GameStats {
+        delete stats.playersByTeam
+        if (Array.isArray(stats.recaps.gameRecap)) {
+            // gameRecap is empty array if empty, convert to undefined instead
+            stats.recaps.gameRecap = undefined
+        }
+        return stats
+    }
 }
 
 export {

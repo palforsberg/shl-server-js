@@ -1,4 +1,3 @@
-import { Db } from "./Db"
 import { Team } from "./models/Team"
 
 const teams = [

@@ -101,10 +101,10 @@ app.get('/teams', (req, res) => {
 })
 
 function main() {
-   app.listen(port, () => console.log(`[REST]: Server is running at https://localhost:${port}`))
+   app.listen(port, () => console.log(`[REST]: Server is running at http://localhost:${port}`))
 
-   // Object.entries(seasons).filter(e => parseInt(e[0]) != currentSeason).forEach(e => e[1].update())
-   // Object.entries(standings).filter(e => parseInt(e[0]) != currentSeason).forEach(e => e[1].update())
+   Object.entries(seasons).forEach(e => e[1].update())
+   Object.entries(standings).forEach(e => e[1].update())
 
    // gameLoop()
 }
