@@ -2,10 +2,11 @@ import { Game } from './Game'
 
 class GameEvent {
     type: string
-    info: Game
-    constructor(type: string, info: Game) {
+    game: Game
+
+    constructor(type: string, game: Game) {
         this.type = type
-        this.info = info
+        this.game = game
     }
 
     static began(game: Game): GameEvent {

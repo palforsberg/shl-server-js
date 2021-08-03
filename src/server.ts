@@ -1,20 +1,21 @@
 
-import { Db } from './Db'
 import { Game } from './models/Game'
-import { User } from './models/User'
 const { SHL } = require('./ShlClient.js')
 import { Service } from './Service'
 import { Standing } from './models/Standing'
 import express from 'express'
 import * as GameComparer from './GameComparer'
 import { GameStatsService } from './GameStatsService'
+import { Config } from './models/Config'
 import { TeamsService } from './TeamsService'
-const Notifier = require('./Notifier.js')
+import { UserService } from './UserService'
+import { Notifier } from './Notifier'
+import { Db } from './Db'
 
-const port = process.argv[2]
-const clientId = process.argv[3]
-const clientSecret = process.argv[4]
-const shl = new SHL(clientId, clientSecret)
+const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
+
+const port = config.port
+const shl = new SHL(config.shl_client_id, config.shl_client_secret)
 
 const currentSeason = 2021
 
@@ -37,7 +38,7 @@ function getLiveGames(games: Game[]): Game[] {
    return games?.filter(isLive) || []
 }
 
-const users = new Db<User[]>('users')
+const users = new UserService()
 
 const seasons: Record<number, Service<Game[]>> = {}
 const standings: Record<number, Service<Standing[]>> = {}
@@ -47,7 +48,10 @@ for (let i = currentSeason; i >= currentSeason - 4; i--) {
    standings[i] = standingsForSeason(i)
 }
 
+const notifier = new Notifier(config)
+
 const app = express()
+app.use(express.json())
 
 app.get('/games/:season', (req, res) => {
    const season = seasons[parseInt(req.params.season)]
@@ -80,7 +84,7 @@ app.get('/standings/:season', (req, res) => {
                gp: 0,
                team_code,
                points: 0,
-               rank: 1,
+               rank: 0,
             })
             g?.forEach(e => teams.add(e.home_team_code))
             return res.send(JSON.stringify(Array.from(teams).map(getStanding)))
@@ -91,8 +95,9 @@ app.get('/standings/:season', (req, res) => {
    }) 
 })
 
-app.get('/users', (req, res) => {
-   res.send(JSON.stringify(users.read()))
+app.post('/user', (req, res) => {
+   users.addUser(req.body.apn_token, req.body.teams)
+   res.send('success')
 })
 
 app.get('/teams', (req, res) => {
@@ -127,8 +132,8 @@ function gameJob() {
          .then(liveGamesService.update)
          .then(liveGames => {
             const events = GameComparer.compare(oldLiveGames || [], liveGames)
-            return users.read().then(us => {
-               Notifier.notify(events, us || [])
+            return users.db.read().then(us => {
+               notifier.notify(events, us || [])
                return Promise.resolve()
             }).then(() => Promise.all(liveGames.map(e => statsService.update(e))))
          }))
