@@ -32,6 +32,7 @@ interface Standing {
     team_code: string,
     points: number,
     rank: number,
+    diff: number,
 }
 
 export {

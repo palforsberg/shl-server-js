@@ -76,7 +76,7 @@ app.get('/standings/:season', (req, res) => {
       return res.status(404).send('Could not find season ' + req.params.season)
    }
    standing.db.read().then(s => {
-      if (s.length == 0) {
+      if (s == undefined || s.length == 0) {
          const season = seasons[parseInt(req.params.season)]
          return season.db.read().then(g => {
             var teams: Set<string> = new Set()
@@ -85,6 +85,7 @@ app.get('/standings/:season', (req, res) => {
                team_code,
                points: 0,
                rank: 0,
+               diff: 0,
             })
             g?.forEach(e => teams.add(e.home_team_code))
             return res.send(JSON.stringify(Array.from(teams).map(getStanding)))

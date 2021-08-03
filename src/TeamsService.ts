@@ -11,7 +11,7 @@ const teams = [
     { code: "FHC", name: "Frölunda HC" },
     { code: "FBK", name: "Färjestad BK" },
     { code: "MIF", name: "IF Malmö Redhawks" },
-    { code: "DIF", name: "Djurgården Hockey" },
+    { code: "DIF", name: "Djurgården IF" },
     { code: "IKO", name: "IK Oskarshamn" },
     { code: "LHC", name: "Linköpings HC" },
     { code: "BIF", name: "Brynäs IF" },
