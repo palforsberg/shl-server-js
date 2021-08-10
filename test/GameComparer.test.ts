@@ -50,5 +50,6 @@ function getGame(id: string): Game {
         start_date_time: new Date(),
         played: false,
         season: '2021',
+        game_type: 'Season game',
     }
 }

@@ -32,6 +32,7 @@ interface Game {
     played: boolean,
     start_date_time: Date,
     season: string,
+    game_type: string,
 }
 
 export {

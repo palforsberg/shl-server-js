@@ -97,7 +97,7 @@ app.get('/standings/:season', (req, res) => {
 })
 
 app.post('/user', (req, res) => {
-   users.addUser(req.body.apn_token, req.body.teams)
+   users.addUser(req.body.id, req.body.teams, req.body.apn_token)
    res.send('success')
 })
 
