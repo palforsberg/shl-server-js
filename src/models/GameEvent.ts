@@ -9,6 +9,15 @@ class GameEvent {
         this.game = game
     }
 
+    getDescription(): string {
+        switch (this.type) {
+            case 'began': return 'Matchen började'
+            case 'ended': return 'Matchen slutade'
+            case 'scored': return 'Mål!'
+            default: return ''
+        }
+    }
+
     static began(game: Game): GameEvent {
         return new GameEvent('began', game)
     }

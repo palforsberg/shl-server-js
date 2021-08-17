@@ -43,9 +43,11 @@ class Notifier {
         const ag = event.game.away_team_result
         /**
          * FBK 0 - 5 LHF
-         * LHF scored a new goal
+         * Mål!
          */
-        this.sendNotificationMsg(user, `${ht} ${hg} - ${ag} ${at}\n${event.type}`)
+        const msg = `${ht} ${hg} - ${ag} ${at}\n
+                    ${event.getDescription()}`
+        this.sendNotificationMsg(user, msg)
     }
 
     userHasSubscribed(user: User, team1: string, team2: string) {
@@ -71,8 +73,7 @@ class Notifier {
             } else {
                 console.log(`[NOTIFIER] Sent ${msg} to ${user.id}`)
             }
-        })
-        
+        })   
     }
 }
 

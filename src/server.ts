@@ -124,7 +124,7 @@ function main() {
    Object.entries(seasons).forEach(e => e[1].update())
    Object.entries(standings).forEach(e => e[1].update())
 
-   // gameLoop()
+   gameLoop()
 }
 
 function gameLoop() {
@@ -132,7 +132,7 @@ function gameLoop() {
    gameJob()
       .then(liveGamesService.db.read)
       .then(liveGames => {
-         var delay = liveGames.length > 0 ? 0 : 30
+         var delay = liveGames.length > 0 ? 0 : 60
          setTimeout(gameLoop, delay * 1000)
          console.log('[LOOP] ******* End **********')
       })
