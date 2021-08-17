@@ -106,6 +106,18 @@ app.get('/teams', (req, res) => {
    teams.then(e => res.send(JSON.stringify(e)))
 })
 
+app.post('/push', (req, res) => {
+   const pass = req.body.admin_password
+   if (pass !== config.admin_password) {
+      return res.status(403).send('Not authorized')
+   }
+   const msg = req.body.message
+   users.db.read().then(us => {
+      us.forEach(u => notifier.sendNotificationMsg(u, msg)) 
+      res.send(`Sent notification to ${us.length} users`)
+   })
+})
+
 function main() {
    app.listen(port, () => console.log(`[REST]: Server is running at http://localhost:${port}`))
 

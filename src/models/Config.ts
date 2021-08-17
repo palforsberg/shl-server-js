@@ -6,6 +6,7 @@ interface Config {
     apn_key_id: string
     apn_team_id: string
     apn_topic: string
+    admin_password: string,
     port: number
 }
 

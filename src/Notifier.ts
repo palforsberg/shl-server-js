@@ -68,8 +68,11 @@ class Notifier {
         this.apnConnection.send(note, user.apn_token).then((result: ApnResponse) => {
             if (result.failed.length > 0) {
                 console.error('[NOTIFIER] Failed to push notification ', result.failed)
+            } else {
+                console.log(`[NOTIFIER] Sent ${msg} to ${user.id}`)
             }
         })
+        
     }
 }
 
