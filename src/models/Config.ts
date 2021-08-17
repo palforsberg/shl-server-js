@@ -7,6 +7,7 @@ interface Config {
     apn_team_id: string
     apn_topic: string
     admin_password: string,
+    production: boolean,
     port: number
 }
 

@@ -19,7 +19,7 @@ class Notifier {
                 keyId: config.apn_key_id,
                 teamId: config.apn_team_id,
             },
-            production: false
+            production: config.production,
         }
         this.topic = config.apn_topic
         this.apnConnection = new apn.Provider(options)
