@@ -124,7 +124,9 @@ function main() {
    Object.entries(seasons).forEach(e => e[1].update())
    Object.entries(standings).forEach(e => e[1].update())
 
-   gameLoop()
+   if (config.production) {
+      gameLoop()
+   }
 }
 
 function gameLoop() {
