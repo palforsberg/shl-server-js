@@ -1,4 +1,4 @@
-import { Team } from "./models/Team"
+import { Team } from "../models/Team"
 
 const teams = [
     { code: "TIK", name: "Timrå IK" },

@@ -1,5 +1,5 @@
-import { Db } from "./Db";
-import { User } from "./models/User";
+import { Db } from "../Db";
+import { User } from "../models/User";
 
 class UserService {
     db: Db<User[]>
@@ -8,7 +8,7 @@ class UserService {
         this.db = new Db<User[]>('users')
     }
 
-    addUser(id: string, teams: [string], apn_token?: string): Promise<User[]> {
+    addUser(id: string, teams: string[], apn_token?: string): Promise<User[]> {
         var user: User = { id: id, apn_token: apn_token, teams: teams }
         return this.db.read().then(us => {
             const updated = (us || []).filter(e => e.id != user.id)

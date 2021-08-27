@@ -1,6 +1,6 @@
-import { Db } from "./Db";
-import { Game } from "./models/Game";
-import { SHL } from "./ShlClient";
+import { Db } from "../Db";
+import { Game } from "../models/Game";
+import { SHL } from "../ShlClient";
 
 
 class GameStatsService {
@@ -18,7 +18,7 @@ class GameStatsService {
 
     updateGame(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
         return this.client.getGameStats(game_uuid, game_id).then(stats => {
-            if (!stats) {
+            if (!stats || stats.recaps == undefined) {
                 return Promise.resolve(undefined)
             }
             return this.db.read().then(old => {

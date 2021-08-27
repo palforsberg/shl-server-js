@@ -1,6 +1,6 @@
 const axios = require('axios')
 const Mutex = require('async-mutex').Mutex
-const Token = require('./Token.js')
+const Token = require('./Token')
 import { Game } from './models/Game'
 import { Standing } from './models/Standing'
 
@@ -34,16 +34,18 @@ interface RspData<T> {
 
 class SHL {
    lastCall: Date
+   timeBetween: number
    mutex: typeof Mutex
    getToken: () => Promise<string>
 
-   constructor(clientId: string, clientSecret: string) {
+   constructor(clientId: string, clientSecret: string, timeBetween = MIN_TIME_BETWEEN) {
       this.makeCall = this.makeCall.bind(this)
       this.login = this.login.bind(this)
       this.getStandings = this.getStandings.bind(this)
       this.getToken = Token.createTokenGetter(() => this.login(clientId, clientSecret))
 
       this.lastCall = new Date()
+      this.timeBetween = timeBetween
       this.mutex = new Mutex()
    }
 
@@ -54,7 +56,7 @@ class SHL {
    }
    
    getGames(season: string): Promise<Game[]> {
-      return this.getWithToken("seasons/" + season + "/games.json")
+      return this.getWithToken<Game[]>("seasons/" + season + "/games.json")
    }
 
    getGameStats(game_uuid: string, game_id: string): Promise<GameStats>  {
@@ -75,7 +77,7 @@ class SHL {
    
    getWithToken<T>(url: string): Promise<T>  {
       return this.mutex.runExclusive(async () => {
-         await this.wait(MIN_TIME_BETWEEN)
+         await this.wait(this.timeBetween)
          return this.getAuthHeader()
             .then(config => this.makeCall(() => axios.get(this.getUrl(url), config)))
       })
@@ -95,7 +97,7 @@ class SHL {
          .catch(error => console.error(`Failed:`, error.toString()))
    }
 
-   async wait(time = MIN_TIME_BETWEEN) {
+   async wait(time: number) {
       const timeSinceLastCall = new Date().getTime() - this.lastCall.getTime()
       const timeDiff = time - timeSinceLastCall
       if (timeDiff > 0) {
