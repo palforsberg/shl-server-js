@@ -13,17 +13,37 @@ class GameStatsService {
         this.client = client
         this.db = new Db<Record<string, GameStats>>('game_stats')
         this.gameService = gameService
+
+        this.update = this.update.bind(this)
+        this.getAndPush = this.getAndPush.bind(this)
+        this.pushToGameService = this.pushToGameService.bind(this)
+        this.updateGame = this.updateGame.bind(this)
+        this.get = this.get.bind(this)
     }
 
     update(game: Game): Promise<GameStats | undefined> {
+        if (game == undefined){
+            return Promise.resolve(undefined)
+        }
         return this.updateGame(game.game_uuid, game.game_id).then(e => {
-            if (e == undefined) {
-                return Promise.resolve(e)
-            }
-            return this.gameService
-                .updateGoals(game.game_uuid, game.game_id, e.recaps.gameRecap?.homeG, e.recaps.gameRecap?.awayG)
-                .then(a => e)
+            return this.pushToGameService(game, e)
         })
+    }
+
+    getAndPush(game: Game): Promise<GameStats | undefined> {
+        if (game == undefined){
+            return Promise.resolve(game)
+        }
+        return this.get(game.game_uuid, game.game_id).then(e => this.pushToGameService(game, e))
+    }
+
+    pushToGameService(game: Game, gameStats: GameStats | undefined): Promise<GameStats | undefined> {
+        if (gameStats == undefined) {
+            return Promise.resolve(gameStats)
+        }
+        return this.gameService
+                .updateGoals(game.game_uuid, game.game_id, gameStats.recaps.gameRecap?.homeG, gameStats.recaps.gameRecap?.awayG)
+                .then(a => gameStats)
     }
 
     updateGame(game_uuid: string, game_id: string): Promise<GameStats | undefined> {

@@ -154,6 +154,22 @@ test("Notification on score, only from game stats", async () => {
     var live = await liveGames.db.read()
     expect(live[0].home_team_result).toBe(3)
     expect(live[0].away_team_result).toBe(0)
+    sentNotification.mockClear()
+
+    // When - Loop runs with no score change
+    mockAxios(axios, [getGame(0, 0)], getGameStats(3, 0))
+    await looper.gameJob()
+
+    // Then - notifications should've been sent
+    expect(sentNotification).toHaveBeenCalledTimes(0)
+
+    // GameStats should update the game db
+    games = await gameService.getCurrentSeason().db.read()
+    expect(games[0].home_team_result).toBe(3)
+    expect(games[0].away_team_result).toBe(0)
+    var live = await liveGames.db.read()
+    expect(live[0].home_team_result).toBe(3)
+    expect(live[0].away_team_result).toBe(0)
 })
 
 test("Notification game ended", async () => {

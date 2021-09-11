@@ -27,7 +27,7 @@ class GameService {
                 return Promise.resolve(allGames)
             }
             if (home_g) {
-                allGames[gameIndex].home_team_result = home_g 
+                allGames[gameIndex].home_team_result = home_g
             }
             if (away_g) {
                 allGames[gameIndex].away_team_result = away_g

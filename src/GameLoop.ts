@@ -42,19 +42,21 @@ class GameLoop {
            .then((liveGames: Game[]) => {
               var delay = liveGames.length > 0 ? 3 : 60
               setTimeout(this.loop, delay * 1000)
-              console.log(`[LOOP] ******* End ********** (next in ${delay}s`)
+              console.log(`[LOOP] ******* End ********** next in ${delay}s`)
            })
      }
      
     private gameJob() {
         return this.liveGamesService.db.read().then(oldLiveGames => 
-           this.gameService.getCurrentSeason().update()
-              .then(this.standingsService.getCurrentSeason().update)
+         this.standingsService.getCurrentSeason().update()
+              .then(this.gameService.getCurrentSeason().update)
               // find all live games
               .then(this.liveGamesService.update)
+              // overwrite goals again from gamestats before retriving them again
+              .then(liveGames => Promise.all(liveGames.map(e => this.gameStatsService.getAndPush(e))).then(a => liveGames))
               // fetch game stats for those games
               .then(liveGames => Promise.all(liveGames.map(e => this.gameStatsService.update(e))))
-              // update the live games again withthe updated stats
+              // update the live games again with the updated stats
               .then(this.liveGamesService.update)
               .then((liveGames: Game[]) => {
                  const events = GameComparer.compare(oldLiveGames || [], liveGames)

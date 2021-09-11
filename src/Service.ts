@@ -17,7 +17,7 @@ class Service<T> {
       this.update = this.update.bind(this)
       this.hasExpired = this.hasExpired.bind(this)
       this.db = create(name, this.fromData, this.fromDb)
-      this.expiryDelta = expiryDelta
+      this.expiryDelta = expiryDelta * 1000
       this.service = service.bind(this)
    }
    fromData(data: T): Promise<WrappedObject<T>> {
