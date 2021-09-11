@@ -25,12 +25,14 @@ class GameLoop {
         gameStatsService: GameStatsService,
         currentStanding: StandingService) {
 
-        this.liveGamesService = liveGamesService
-        this.gameService = gameService
-        this.standingsService = currentStanding
-        this.userService = userService
-        this.gameStatsService = gameStatsService
-        this.notifier = new Notifier(config)
+         this.loop = this.loop.bind(this)
+         this.gameJob = this.gameJob.bind(this)
+         this.liveGamesService = liveGamesService
+         this.gameService = gameService
+         this.standingsService = currentStanding
+         this.userService = userService
+         this.gameStatsService = gameStatsService
+         this.notifier = new Notifier(config)
     }
 
     loop() {
