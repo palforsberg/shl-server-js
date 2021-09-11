@@ -1,6 +1,4 @@
-import express from "express";
 import { Config } from "../models/Config";
-import { Standing } from "../models/Standing";
 import { Team } from "../models/Team";
 import { User } from "../models/User";
 import { Notifier } from "../Notifier";
@@ -12,8 +10,8 @@ import { UserService } from "./UserService";
 
 class RestService {
     private config: Config
-    private gamesServices: Record<number, GameService>
-    private standingServices: Record<number, StandingService>
+    private gamesServices: GameService
+    private standingServices: StandingService
     private users: UserService
     private statsService: GameStatsService
     private teamsService: TeamsService
@@ -23,12 +21,12 @@ class RestService {
     constructor(
         app: any,
         config: Config,
-        gamesServices: Record<number, GameService>,
-        standingServices: Record<number, StandingService>,
+        gamesServices: GameService,
+        standingServices: StandingService,
         users: UserService,
         statsService: GameStatsService,
         teamsService: TeamsService,
-        ) {
+    ) {
         this.app = app
         this.config = config
         this.gamesServices = gamesServices
@@ -47,7 +45,7 @@ class RestService {
     setupRoutes() {
 
         this.app.get('/games/:season', (req: any, res: any) => {
-            const season = this.gamesServices[parseInt(req.params.season)]
+            const season = this.gamesServices.getSeason(req.params.season)
             if (!season) {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
@@ -64,25 +62,18 @@ class RestService {
          })
          
          this.app.get('/standings/:season', (req: any, res: any) => {
-            const standing = this.standingServices[parseInt(req.params.season)]
+            const standing = this.standingServices.getSeason(req.params.season)
             if (!standing) {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
             return standing.db.read().then(s => {
                if (s == undefined || s.length == 0) {
-                  const season = this.gamesServices[parseInt(req.params.season)]
-                  return season.db.read().then(g => {
-                     var teams: Set<string> = new Set()
-                     const getStanding: ((a: string) => Standing) = team_code => ({
-                        team_code,
-                        gp: 0,
-                        points: 0,
-                        rank: 0,
-                        diff: 0,
-                     })
-                     g?.forEach(e => teams.add(e.home_team_code))
-                     return res.send(JSON.stringify(Array.from(teams).map(getStanding)))
-                  }) 
+                  const season = this.gamesServices.getSeason(req.params.season)
+                  if (!season) {
+                      return Promise.resolve()
+                  }
+                  return season.db.read().then(g => 
+                    res.send(JSON.stringify(StandingService.getEmptyStandingsFrom(g || [])))) 
                } else {
                   return res.send(JSON.stringify(s))
                }
@@ -90,13 +81,11 @@ class RestService {
          })
          
          this.app.post('/user', (req: any, res: any) => {
-            const user: User = req.body
-            if (user.teams == undefined || user.id == undefined) {
+            const user: User = new User(req.body.id, req.body.teams, req.body.apn_token)
+            if (!user.isValid()) {
                 return res.status(500)
             }
-            return this.users.addUser(user.id, user.teams, user.apn_token).then(e => {
-                return res.send('success')
-            })
+            return this.users.addUser(user).then(e => res.send('success'))
          })
          
          this.app.get('/teams', (req: any, res: any) => {

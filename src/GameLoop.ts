@@ -11,8 +11,8 @@ import { User } from "./models/User";
 
 class GameLoop {
     private liveGamesService: LiveGameService
-    private currentSeason: GameService
-    private currentStandings: StandingService
+    private gameService: GameService
+    private standingsService: StandingService
     private userService: UserService
     private gameStatsService: GameStatsService
     private notifier: Notifier
@@ -20,14 +20,14 @@ class GameLoop {
     constructor(
         config: Config,
         liveGamesService: LiveGameService,
-        currentSeason: GameService,
+        gameService: GameService,
         userService: UserService,
         gameStatsService: GameStatsService,
         currentStanding: StandingService) {
 
         this.liveGamesService = liveGamesService
-        this.currentSeason = currentSeason
-        this.currentStandings = currentStanding
+        this.gameService = gameService
+        this.standingsService = currentStanding
         this.userService = userService
         this.gameStatsService = gameStatsService
         this.notifier = new Notifier(config)
@@ -38,23 +38,29 @@ class GameLoop {
         this.gameJob()
            .then(this.liveGamesService.db.read)
            .then((liveGames: Game[]) => {
-              var delay = liveGames.length > 0 ? 0 : 60
+              var delay = liveGames.length > 0 ? 3 : 60
               setTimeout(this.loop, delay * 1000)
-              console.log('[LOOP] ******* End **********')
+              console.log(`[LOOP] ******* End ********** (next in ${delay}s`)
            })
      }
      
     private gameJob() {
         return this.liveGamesService.db.read().then(oldLiveGames => 
-           this.currentSeason.update()
-              .then(this.currentStandings.update)
+           this.gameService.getCurrentSeason().update()
+              .then(this.standingsService.getCurrentSeason().update)
+              // find all live games
+              .then(this.liveGamesService.update)
+              // fetch game stats for those games
+              .then(liveGames => Promise.all(liveGames.map(e => this.gameStatsService.update(e))))
+              // update the live games again withthe updated stats
               .then(this.liveGamesService.update)
               .then((liveGames: Game[]) => {
                  const events = GameComparer.compare(oldLiveGames || [], liveGames)
+
                  return this.userService.db.read().then((us: User[]) => {
                     this.notifier.notify(events, us || [])
                     return Promise.resolve()
-                 }).then(() => Promise.all(liveGames.map(e => this.gameStatsService.update(e))))
+                 })
               }))
      }
 }

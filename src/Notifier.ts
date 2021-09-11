@@ -45,8 +45,7 @@ class Notifier {
          * FBK 0 - 5 LHF
          * Mål!
          */
-        const msg = `${ht} ${hg} - ${ag} ${at}\n
-                    ${event.getDescription()}`
+        const msg = `${ht} ${hg} - ${ag} ${at}\n${event.getDescription()}`
         this.sendNotificationMsg(user, msg)
     }
 
@@ -66,7 +65,7 @@ class Notifier {
         note.alert = msg
         note.payload = {}
         note.topic = this.topic
-
+ 
         this.apnConnection.send(note, user.apn_token).then((result: ApnResponse) => {
             if (result.failed.length > 0) {
                 console.error('[NOTIFIER] Failed to push notification ', result.failed)

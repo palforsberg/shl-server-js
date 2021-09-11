@@ -5,7 +5,7 @@ interface Token {
 }
 function createTokenGetter(service: () => Promise<Token>, expiresIn = 3600) {
    const s = new Service<Token>('token', service, expiresIn)
-   return () => s.update().then((t: Token) => {
+   return () => s.update().then(s.db.read).then((t: Token) => {
       return t?.access_token
    })
 }

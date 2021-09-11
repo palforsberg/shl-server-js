@@ -30,11 +30,11 @@ mockApn()
 const season = 2030
 const config = getConfig()
 const shl = new SHL(config.shl_client_id, config.shl_client_secret, 1)
-const currentSeason = new GameService(season, season, shl)
+const gameService = new GameService(season, 4, shl)
 
 const userService = new UserService()
-const gameStatsService = new GameStatsService(shl)
-const standingsService = new StandingService(season, season, shl)
+const gameStatsService = new GameStatsService(shl, gameService)
+const standingsService = new StandingService(season, 4, shl)
 const teamsService = new TeamsService()
 
 const getServices: Record<string, (a: any, b: any) => void> = {}
@@ -49,8 +49,8 @@ app.post = jest.fn().mockImplementation((e, fnc) => {
 const restService = new RestService(
     app,
     config,
-    { 2030: currentSeason },
-    { 2030: standingsService },
+    gameService,
+    standingsService,
     userService,
     gameStatsService,
     teamsService
@@ -67,7 +67,7 @@ beforeEach(async () => {
 test('Get season', async () => {
     // Given
     const game = [getGame()]
-    await currentSeason.db.write(game)
+    await gameService.getCurrentSeason().db.write(game)
     const req = new Request()
     req.setParams('season', season.toString())
     const res = new Response()
@@ -108,7 +108,7 @@ test('Get not found season', () => {
 test('Get standings', async () => {
     // Given
     const standings = [getStanding()]
-    await standingsService.db.write(standings)
+    await standingsService.getCurrentSeason().db.write(standings)
     const req = new Request()
     req.setParams('season', season.toString())
     const res = new Response()
@@ -139,8 +139,8 @@ test('Get standings 404', async () => {
 test('Get empty standings', async () => {
     // Given
     const req = new Request()
-    await currentSeason.db.write([getGame()])
-    await standingsService.db.write([])
+    await gameService.getCurrentSeason().db.write([getGame()])
+    await standingsService.getCurrentSeason().db.write([])
     req.setParams('season', season.toString())
     const res = new Response()
 
@@ -237,11 +237,7 @@ test('Get game stats, no params', async () => {
 
 test('Post user', async () => {
     // Given
-    const user: User = {
-        id: '123',
-        teams: ['LHF'],
-        apn_token: 'apn_token',
-    }
+    const user: User = new User('123', ['LHF'], 'apn_token')
     const req = new Request()
     req.setBody(user)
     const res = new Response()
@@ -262,7 +258,9 @@ test('Post user', async () => {
 test('Post user garbage data', async () => {
     // Given
     const user = {
-        hejsan: 'svejsan'
+        hejsan: 'svejsan',
+        id: [],
+        teams: 'coolio',
     }
     const req = new Request()
     req.setBody(user)
@@ -279,13 +277,29 @@ test('Post user garbage data', async () => {
     expect(users.length).toBe(0)
 })
 
+
+test('Post user with number for ID', async () => {
+    // Given
+    const user = {
+        apn_token: 'svejsan',
+        id: 123,
+        teams: ['LHF'],
+    }
+    const req = new Request()
+    req.setBody(user)
+    const res = new Response()
+
+    // When
+    await postServices['/user'](req, res)
+
+    // Then - should add
+    const users = await userService.db.read()
+    expect(users.length).toBe(1)
+})
+
 test('Post user without apn_token', async () => {
     // Given
-    const user: User = {
-        id: '123',
-        teams: ['LHF'],
-        apn_token: 'apn_token',
-    }
+    const user: User = new User('123', ['LHF'], 'apn_token')
     const req = new Request()
     req.setBody(user)
     const res = new Response()
@@ -309,11 +323,7 @@ test('Post user without apn_token', async () => {
 
 test('Post user without any team', async () => {
     // Given
-    const user: User = {
-        id: '123',
-        teams: ['LHF'],
-        apn_token: 'apn_token',
-    }
+    const user: User = new User('123', ['LHF'], 'apn_token')
     const req = new Request()
     req.setBody(user)
     const res = new Response()

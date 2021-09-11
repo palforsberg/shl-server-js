@@ -32,6 +32,10 @@ interface RspData<T> {
    }
 }
 
+/**
+ * Class to make calls to the SHL API. 
+ * Will not handle errors.
+ */
 class SHL {
    lastCall: Date
    timeBetween: number
@@ -64,7 +68,7 @@ class SHL {
    }
 
    getStandings(season: number): Promise<Standing[]>  {
-      return this.getWithToken(`/seasons/${season}/statistics/teams/standings.json`)
+      return this.getWithToken(`seasons/${season}/statistics/teams/standings.json`)
    }
    
    getTeams(): Promise<Object>  {
@@ -85,7 +89,7 @@ class SHL {
       
    get<T>(url: string): Promise<T>  {
       return this.mutex.runExclusive(() => 
-         this.wait(1).then(() => this.makeCall(() => axios.get(this.getUrl(url)))))
+         this.wait(this.timeBetween).then(() => this.makeCall(() => axios.get(this.getUrl(url)))))
    }
    
    makeCall<T>(call: () => Promise<RspData<T>>): Promise<T | void>  {
@@ -94,7 +98,6 @@ class SHL {
          .finally(() => {
             this.lastCall = new Date()
          })
-         .catch(error => console.error(`Failed:`, error.toString()))
    }
 
    async wait(time: number) {

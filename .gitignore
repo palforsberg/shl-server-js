@@ -1,6 +1,7 @@
 node_modules
 client_secret.js
 db
+db_backup
 deployment
 .vscode
 .DS_Store

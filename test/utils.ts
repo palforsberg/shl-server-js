@@ -27,13 +27,13 @@ function getGame(home_team_result: number = 1, away_team_result: number = 0, pla
     }
 }
 
-function getGameStats(): GameStats {
+function getGameStats(homeG = 1, awayG = 1): GameStats {
     return {
         recaps: {
             gameRecap: {
                 periodNumber: 0,
-                awayG: 1,
-                homeG: 1,
+                awayG,
+                homeG,
                 awayHits: 15,
                 homeHits: 15,
                 awayFOW: 0,
@@ -62,12 +62,25 @@ function getConfig(): Config {
     }
 }
 
-function mockAxios(axios: any, games: Game[], gameStats?: GameStats) {
+function mockAxios(axios: any, games: Game[], gameStats?: GameStats, standings: Standing[] = [getStanding()]) {
+    mockAxiosFn(axios,
+        () => Promise.resolve({ data: games }),
+        () => Promise.resolve({ data: gameStats }),
+        () => Promise.resolve({ data: standings }))
+}
+
+function mockAxiosFn(
+    axios: any, 
+    games: () => Promise<any>, 
+gameStats: () => Promise<any>,
+standings: (() => Promise<any>) = () => Promise.resolve({ data: getStanding() })) {
     axios.get = jest.fn().mockImplementation(e => {
         if (e == `https://openapi.shl.se/seasons/2030/games.json`) {
-            return Promise.resolve({ data: games })
+            return games()
         } else if (e == `https://www.shl.se/gamecenter/123/statistics/321.json`) {
-            return Promise.resolve({ data: gameStats })
+            return gameStats()
+        } else if (e == `https://openapi.shl.se/seasons/2030/statistics/teams/standings.json`) {
+            return standings()
         }
         return Promise.resolve({ data: 'fake data' })
     })
@@ -88,6 +101,7 @@ export {
     getGame,
     getGameStats,
     mockAxios,
+    mockAxiosFn,
     getConfig,
     mockApn,
 }

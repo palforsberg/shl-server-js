@@ -8,8 +8,7 @@ class UserService {
         this.db = new Db<User[]>('users')
     }
 
-    addUser(id: string, teams: string[], apn_token?: string): Promise<User[]> {
-        var user: User = { id: id, apn_token: apn_token, teams: teams }
+    addUser(user: User): Promise<User[]> {
         return this.db.read().then(us => {
             const updated = (us || []).filter(e => e.id != user.id)
             if (user.teams.length > 0 && user.apn_token != undefined) {
