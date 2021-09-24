@@ -2,15 +2,31 @@
  * Stats of a single game.
  */
 
+interface Player {
+  player: number
+  team: string
+  firstName: string
+  familyName: string
+  toi: string
+  jersey: number
+  g: number
+  a: number
+  pim: number
+}
+
+interface PlayersOnTeam {
+  GK: [],
+  players: Player[],
+}
 interface GameStats {
-    recaps: {
+    recaps?: {
         0?: Period,
         1?: Period,
         2?: Period,
         gameRecap?: Period,
     },
     gameState: string,
-    playersByTeam?: [],
+    playersByTeam?: Record<string, PlayersOnTeam>,
 }
 
 interface Period {

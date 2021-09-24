@@ -45,6 +45,30 @@ function getGameStats(homeG = 1, awayG = 1): GameStats {
             }
         },
         gameState: 'begun',
+        playersByTeam: {
+            "LHF": {
+                players: [getPlayer(), getPlayer(), getPlayer()],
+                GK: [],
+            },
+            "FHC": {
+                players: [getPlayer(), getPlayer()],
+                GK: [],
+            }
+        }
+    }
+}
+
+function getPlayer(): Player {
+    return {
+        player: 1,
+        jersey: 69,
+        team: 'LHF',
+        firstName: 'Mats',
+        familyName: 'Matsson',
+        g: 10,
+        a: 1,
+        pim: 99,
+        toi: '23:21',
     }
 }
 

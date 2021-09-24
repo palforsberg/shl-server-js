@@ -81,7 +81,7 @@ test("Notify on started game", async () => {
     // Game stats should be updated
     const gameStats = await gameStatsService.db.read()
     expect(gameStats[getGame().game_uuid]).toBeDefined()
-    expect(gameStats[getGame().game_uuid].recaps.gameRecap?.awayG).toBe(getGameStats().recaps.gameRecap?.awayG)
+    expect(gameStats[getGame().game_uuid].recaps?.gameRecap?.awayG).toBe(getGameStats().recaps?.gameRecap?.awayG)
 
     // Notifications should be sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
@@ -160,7 +160,7 @@ test("Notification on score, only from game stats", async () => {
     mockAxios(axios, [getGame(0, 0)], getGameStats(3, 0))
     await looper.gameJob()
 
-    // Then - notifications should've been sent
+    // Then - notifications should not have been sent
     expect(sentNotification).toHaveBeenCalledTimes(0)
 
     // GameStats should update the game db
@@ -189,6 +189,11 @@ test("Notification game ended", async () => {
     // Then - notifications should've been sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
     expect(sentNotification.mock.calls[0][0].alert).toContain('Matchen slutade')
+
+    const stats = await gameStatsService.db.read()
+    var firstStat = Object.values(stats)[0]
+    expect(firstStat.playersByTeam?.['LHF'].players.length).toBe(3)
+    expect(firstStat.playersByTeam?.['LHF'].players[0].firstName).toBe('Mats')
 })
 
 test("No live game", async () => {

@@ -44,6 +44,12 @@ class GameLoop {
               setTimeout(this.loop, delay * 1000)
               console.log(`[LOOP] ******* End ********** next in ${delay}s`)
            })
+           .catch(e => {
+               var delay = 3
+               setTimeout(this.loop, delay * 1000)
+               console.error(`[LOOP] Error ${JSON.stringify(e)}`)
+               console.log(`[LOOP] ******* Ended with Error ******* next in ${delay}s`)
+           })
      }
      
     private gameJob() {
@@ -52,7 +58,7 @@ class GameLoop {
               .then(this.gameService.getCurrentSeason().update)
               // find all live games
               .then(this.liveGamesService.update)
-              // overwrite goals again from gamestats before retriving them again
+              // overwrite goals from gamestats before retriving them again
               .then(liveGames => Promise.all(liveGames.map(e => this.gameStatsService.getAndPush(e))).then(a => liveGames))
               // fetch game stats for those games
               .then(liveGames => Promise.all(liveGames.map(e => this.gameStatsService.update(e))))

@@ -26,13 +26,7 @@ function compare(oldLiveGames: Game[], newLiveGames: Game[]): GameEvent[] {
         if (old.home_team_result < updated.home_team_result) {
             result.push(GameEvent.scored(updated))
         }
-        if (old.home_team_result > updated.home_team_result) {
-            result.push(GameEvent.scored(updated))
-        }
         if (old.away_team_result < updated.away_team_result) {
-            result.push(GameEvent.scored(updated))
-        }
-        if (old.away_team_result > updated.away_team_result) {
             result.push(GameEvent.scored(updated))
         }
     })

@@ -38,7 +38,7 @@ class GameStatsService {
     }
 
     pushToGameService(game: Game, gameStats: GameStats | undefined): Promise<GameStats | undefined> {
-        if (gameStats == undefined) {
+        if (gameStats == undefined || gameStats.recaps == undefined) {
             return Promise.resolve(gameStats)
         }
         return this.gameService
@@ -81,8 +81,7 @@ class GameStatsService {
     }
 
     private normalize(stats: GameStats): GameStats {
-        delete stats.playersByTeam
-        if (Array.isArray(stats.recaps.gameRecap)) {
+        if (stats.recaps && Array.isArray(stats.recaps.gameRecap)) {
             // gameRecap is empty array if empty, convert to undefined instead
             stats.recaps.gameRecap = undefined
         }
