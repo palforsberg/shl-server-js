@@ -85,6 +85,10 @@ class GameStatsService {
             // gameRecap is empty array if empty, convert to undefined instead
             stats.recaps.gameRecap = undefined
         }
+        if (stats.playersByTeam && Array.isArray(stats.playersByTeam)) {
+            // playersByTeam is empty array if empty, convert to undefined instead
+            stats.playersByTeam = undefined
+        }
         return stats
     }
 }
