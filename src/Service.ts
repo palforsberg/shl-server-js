@@ -53,6 +53,9 @@ class Service<T> {
       if (this.expiryDelta == 0) {
          return true
       }
+      if (this.expiryDelta < 0) {
+         return false
+      }
       const diff = new Date().getTime() - new Date(timestamp || 0).getTime()
       return diff > this.expiryDelta
    }

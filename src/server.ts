@@ -57,9 +57,9 @@ const restService = new RestService(
 restService.setupRoutes()
 restService.startListen(config.port)
 
+Object.entries(gameService.seasons).forEach(e => e[1].update())
+Object.entries(standingsService.seasons).forEach(e => e[1].update())
 
 if (config.production) {
-   Object.entries(gameService.seasons).forEach(e => e[1].update())
-   Object.entries(standingsService.seasons).forEach(e => e[1].update())
    gameLoop.loop()
 }
