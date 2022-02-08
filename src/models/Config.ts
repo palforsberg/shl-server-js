@@ -8,7 +8,8 @@ interface Config {
     apn_topic: string
     admin_password: string,
     production: boolean,
-    port: number
+    port: number,
+    max_listeners: number,
 }
 
 export {

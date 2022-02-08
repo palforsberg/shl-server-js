@@ -13,9 +13,9 @@ import { StandingService } from './services/StandingService'
 import { RestService } from './services/RestService'
 import express from 'express'
 
-require('events').EventEmitter.defaultMaxListeners = 15
 
 const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
+require('events').EventEmitter.defaultMaxListeners = config.max_listeners || 100
 
 setupLogger(config)
 
