@@ -9,7 +9,7 @@ interface Config {
     admin_password: string,
     production: boolean,
     port: number,
-    max_listeners: number,
+    max_listeners?: number,
 }
 
 export {
