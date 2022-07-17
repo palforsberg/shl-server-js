@@ -24,7 +24,7 @@ console.log('[SERVER] Starting...', JSON.stringify({ port: config.port, producti
 
 const shl = new SHL(config.shl_client_id, config.shl_client_secret)
 
-const currentSeason = 2021
+const currentSeason = 2022
 const nrSeasons = 4
 
 const teamsService = new TeamsService()
