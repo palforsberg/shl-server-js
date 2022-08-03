@@ -2,7 +2,6 @@
 const fs = require('fs')
 const axios = require('axios')
 
-import { GameStats } from "../src/models/GameStats";
 import { User } from "../src/models/User";
 import { Service } from "../src/Service";
 import { GameStatsService } from "../src/services/GameStatsService";
@@ -113,8 +112,7 @@ test("Notification on score", async () => {
     // Then - notifications should've been sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
     expect(sentNotification.mock.calls[0][0].alert.title).toEqual('MÅÅÅL för Luleå!')
-    expect(sentNotification.mock.calls[0][0].alert.body).toContain('LHF 3 - 0 FBK')
-    expect(sentNotification.mock.calls[0][0].alert.body).toContain('Mats Matsson')
+    expect(sentNotification.mock.calls[0][0].alert.body).toEqual('LHF 3 - 0 FBK\nMats Matsson i 1:a perioden')
 })
 
 test("Notification on score, only from game stats", async () => {
@@ -140,9 +138,6 @@ test("Notification on score, only from game stats", async () => {
     expect(games[0].home_team_result).toBe(2)
     expect(games[0].away_team_result).toBe(0)
 
-    // var live = await liveGames.db.read()
-    // expect(live[0].home_team_result).toBe(2)
-    // expect(live[0].away_team_result).toBe(0)
     sentNotification.mockClear()
 
     // When - Loop runs with score change
@@ -152,15 +147,12 @@ test("Notification on score, only from game stats", async () => {
     // Then - notifications should've been sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
     expect(sentNotification.mock.calls[0][0].alert.title).toEqual('MÅÅÅL för Luleå!')
-    expect(sentNotification.mock.calls[0][0].alert.body).toContain('LHF 3 - 0 FBK')
+    expect(sentNotification.mock.calls[0][0].alert.body).toEqual('LHF 3 - 0 FBK\n1:a perioden')
 
     // GameStats should update the game db
     games = await seasonService.db.read()
     expect(games[0].home_team_result).toBe(3)
     expect(games[0].away_team_result).toBe(0)
-    // var live = await liveGames.db.read()
-    // expect(live[0].home_team_result).toBe(3)
-    // expect(live[0].away_team_result).toBe(0)
     sentNotification.mockClear()
 
     // When - Loop runs with no score change
@@ -174,9 +166,6 @@ test("Notification on score, only from game stats", async () => {
     games = await seasonService.db.read()
     expect(games[0].home_team_result).toBe(3)
     expect(games[0].away_team_result).toBe(0)
-    // var live = await liveGames.db.read()
-    // expect(live[0].home_team_result).toBe(3)
-    // expect(live[0].away_team_result).toBe(0)
 })
 
 test("Notification game ended", async () => {
@@ -325,4 +314,24 @@ test("SHL-client returns error on standings with standing in DB", async () => {
     standings = await standingsService.getCurrentSeason().db.read()
     expect(standings.length).toBe(1)
     expect(standings[0]).toBe(standing)
+})
+
+test('Test with gameStats.recaps being an array', async () => {
+    // Given - SHL returns a live game and some stats
+    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    const gameStats = getGameStats()
+    // @ts-ignore
+    gameStats.recaps!.gameRecap = []
+    // @ts-ignore
+    gameStats.playersByTeam = []
+    mockAxios(axios, [getGame(2, 0, false)], gameStats)
+
+    // When - Loop has run with gameStats
+    await looper.gameJob()
+
+    // Then - recaps should have been converted to object
+    const stats = await gameStatsService.db.read()
+    var firstStat = Object.values(stats)[0]
+    expect(firstStat.recaps!.gameRecap).toBe(undefined)
+    expect(firstStat.playersByTeam).toBe(undefined)
 })

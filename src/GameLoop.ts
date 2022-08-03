@@ -36,7 +36,7 @@ class GameLoop {
         console.log('[LOOP] ******* Begin ********')
         this.gameJob()
            .then((liveGames: [GameStats | undefined, GameStats | undefined][]) => {
-              var delay = liveGames.length > 0 ? 3 : 60 * 10
+              var delay = liveGames.length > 0 ? 3 : 60
               setTimeout(this.loop, delay * 1000)
               console.log(`[LOOP] ******* End ********** next in ${delay}s`)
            })
