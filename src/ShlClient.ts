@@ -1,23 +1,24 @@
 const axios = require('axios')
 const Mutex = require('async-mutex').Mutex
 const Token = require('./Token')
+import { Config } from './models/Config'
 import { Game } from './models/Game'
+import { GameStats, GameStatsIf } from './models/GameStats'
 import { Standing } from './models/Standing'
 
 const times: Record<string, Date> = {}
-const basePath = "https://openapi.shl.se/"
 const MIN_TIME_BETWEEN = 3 * 1000;
 
-const normalizeUrl = (url: string) => url.replace(basePath, '')
 axios.interceptors.request.use((request: Req) => {
    times[request.url] = new Date()
-   console.log('[EXTERNAL]', request.method.toUpperCase(), normalizeUrl(request.url))
+   console.log('[EXTERNAL]', request.method.toUpperCase(), request.url)
    return request
 })
 
 axios.interceptors.response.use((response: RspData<any>) => {
-   const duration = new Date().getTime() - times[response.config.url].getTime()
-   console.log('[EXTERNAL] RSP', normalizeUrl(response.config.url), duration, 'ms')
+   const url = response?.config?.url || ''
+   const duration = new Date().getTime() - (times[url]?.getTime() || 0)
+   console.log('[EXTERNAL] RSP', url, duration, 'ms')
    return response
 })
 
@@ -42,54 +43,76 @@ class SHL {
    mutex: typeof Mutex
    getToken: () => Promise<string>
 
-   constructor(clientId: string, clientSecret: string, timeBetween = MIN_TIME_BETWEEN) {
+   basePath: string
+   statsBasePath: string
+
+   constructor(config: Config, timeBetween = MIN_TIME_BETWEEN) {
       this.makeCall = this.makeCall.bind(this)
       this.login = this.login.bind(this)
       this.getStandings = this.getStandings.bind(this)
-      this.getToken = Token.createTokenGetter(() => this.login(clientId, clientSecret))
+      this.getGames = this.getGames.bind(this)
+      this.getGameStats = this.getGameStats.bind(this)
+      this.getWithToken = this.getWithToken.bind(this)
+      this.getToken = Token.createTokenGetter(() => this.login(config.shl_client_id, config.shl_client_secret))
+      this.makeCall = this.makeCall.bind(this)
+      this.get = this.get.bind(this)
+      this.wait = this.wait.bind(this)
+      this.getAuthHeader = this.getAuthHeader.bind(this)
 
       this.lastCall = new Date()
       this.timeBetween = timeBetween
       this.mutex = new Mutex()
+
+      this.basePath = config.shl_path
+      this.statsBasePath = config.shl_stats_path
+
+      axios.defaults.timeout = config.shl_client_timeout || 30_000;
    }
 
    login(client_id: string, client_secret: string): Promise<any> {
       let body = `client_id=${client_id}&client_secret=${client_secret}&grant_type=client_credentials`
       const config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      return this.makeCall(() => axios.post(basePath + "oauth2/token", body, config))
+      return this.makeCall(() => axios.post(this.basePath + "/oauth2/token", body, config))
    }
    
    getGames(season: string): Promise<Game[]> {
-      return this.getWithToken<Game[]>("seasons/" + season + "/games.json")
+      return this.getWithToken<Game[]>(`${this.basePath}/seasons/${season}/games.json`)
    }
 
    getGameStats(game_uuid: string, game_id: string): Promise<GameStats>  {
-      return this.get(`https://www.shl.se/gamecenter/${game_uuid}/statistics/${game_id}.json`)
+      return this
+         .get<GameStatsIf>(`${this.statsBasePath}/gamecenter/${game_uuid}/statistics/${game_id}.json`)
+         .then(stats => {
+            stats.game_uuid = game_uuid
+            return new GameStats(stats)
+         })
    }
 
    getStandings(season: number): Promise<Standing[]>  {
-      return this.getWithToken(`seasons/${season}/statistics/teams/standings.json`)
+      return this.getWithToken(`${this.basePath}/seasons/${season}/statistics/teams/standings.json`)
    }
    
-   getTeams(): Promise<Object>  {
-      return this.getWithToken('teams.json')
-   }
+   // getTeams(): Promise<Object>  {
+   //    return this.getWithToken('teams.json')
+   // }
 
-   getTeam(team: string): Promise<Object>  {
-      return this.getWithToken(`teams/${team}.json`)
-   }
+   // getTeam(team: string): Promise<Object>  {
+   //    return this.getWithToken(`teams/${team}.json`)
+   // }
    
    getWithToken<T>(url: string): Promise<T>  {
       return this.mutex.runExclusive(async () => {
          await this.wait(this.timeBetween)
-         return this.getAuthHeader()
-            .then(config => this.makeCall(() => axios.get(this.getUrl(url), config)))
+         const config = await this.getAuthHeader()
+         return this.makeCall(() => axios.get(url, config))
       })
    }
       
    get<T>(url: string): Promise<T>  {
-      return this.mutex.runExclusive(() => 
-         this.wait(this.timeBetween).then(() => this.makeCall(() => axios.get(this.getUrl(url)))))
+      return this.mutex.runExclusive(async () => {
+         await this.wait(this.timeBetween)
+         return this.makeCall(() => axios.get(url))
+      })
    }
    
    makeCall<T>(call: () => Promise<RspData<T>>): Promise<T | void>  {
@@ -110,17 +133,6 @@ class SHL {
       }
    }
 
-   getUrl(url: string): string {
-      if (this.isAbsolut(url)) {
-         return url
-      }
-      return basePath + url
-   }
-
-   isAbsolut(url: string): boolean {
-      return url.startsWith('http')
-   }
-   
    getAuthHeader(): Promise<Object> {
       return this.getToken()
          .then(t => ({ headers: { 'Authorization': `bearer ${t}` } }))

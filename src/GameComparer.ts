@@ -1,41 +1,43 @@
 
-import { Game } from './models/Game'
 import { GameEvent } from './models/GameEvent'
+import { GameStats, Player } from './models/GameStats'
 
-function compare(oldLiveGames: Game[], newLiveGames: Game[]): GameEvent[] {
+function compare(games: [GameStats | undefined, GameStats | undefined]): GameEvent | undefined {
+    const old = games[0] || GameStats.empty()
+    const updated = games[1] || GameStats.empty()
+    
+    if (!old.isLive() && updated.isLive()) {
+        return GameEvent.began(updated!)
+    } else if (!old.isPlayed() && updated.isPlayed()) {
+        return GameEvent.ended(updated!)
+    }
 
-    const result: GameEvent[] = []
-    const oldIds: Record<string,Game> = arrToMap(oldLiveGames, e => e.game_uuid)
-    const newIds = arrToMap(newLiveGames, e => e.game_uuid)
-
-
-    Object.keys(newIds).filter(e => oldIds[e] == undefined).forEach(e => {
-        result.push(GameEvent.began(newIds[e]))
-    })
-    Object.keys(oldIds).filter(e => newIds[e] == undefined).forEach(e => {
-        result.push(GameEvent.ended(oldIds[e]))
-    })
-    const ongoing = Object.keys(oldIds).filter(e => newIds[e] !== undefined)
-    ongoing.forEach(e => {
-        const old = oldIds[e]
-        const updated = newIds[e]
-        /**
-         * there is a risk that a goal is made within the first or last 3 seconds of a game
-         * in this case it'll not be picked up here but will be considered as a new or ended game
-         */
-        if (old.home_team_result < updated.home_team_result) {
-            result.push(GameEvent.scored(updated))
-        }
-        if (old.away_team_result < updated.away_team_result) {
-            result.push(GameEvent.scored(updated))
-        }
-    })
-
-    return result
+    if (old.getHomeResult() < updated.getHomeResult()) {
+        const scorer = getScorer(old.getHomeTeam(), updated.getHomeTeam())
+        return GameEvent.scored(updated!, updated.getHomeTeamId(), scorer)
+    }
+    if (old.getAwayResult() < updated.getAwayResult()) {
+        const scorer = getScorer(old.getAwayTeam(), updated.getAwayTeam())
+        return GameEvent.scored(updated!, updated.getAwayTeamId(), scorer)
+    }
+    return undefined
 }
 
-function arrToMap<V>(arr:V[] , keyMapper: (a: V) => string): Record<string,V> {
-    const map: Record<string,V> = {}
+function getScorer(old: Player[], updated: Player[]): Player | undefined {
+    const updatedById = arrToMap(updated, e => e.player)
+
+    for (const e of old) {
+        const u = updatedById[e.player]
+        if (u == undefined) continue;
+        if ((u.g || 0) > (e.g || 0)) {
+            return u;
+        }
+    }
+    return undefined
+}
+
+function arrToMap<V>(arr:V[] , keyMapper: (a: V) => string | number): Record<string | number, V> {
+    const map: Record<string | number, V> = {}
     arr.forEach(e => map[keyMapper(e)] = e)
     return map
 }

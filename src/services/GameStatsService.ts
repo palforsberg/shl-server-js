@@ -1,95 +1,60 @@
 import { Db } from "../Db";
 import { Game } from "../models/Game";
+import { GameStats, GameStatsIf } from "../models/GameStats";
 import { SHL } from "../ShlClient";
-import { GameService } from "./GameService";
-
 
 class GameStatsService {
     client: SHL
-    db: Db<Record<string, GameStats>>
-    gameService: GameService
+    db: Db<Record<string, GameStatsIf>>
 
-    constructor(client: SHL, gameService: GameService) {
+    constructor(client: SHL) {
         this.client = client
-        this.db = new Db<Record<string, GameStats>>('game_stats')
-        this.gameService = gameService
+        this.db = new Db<Record<string, GameStatsIf>>('game_stats')
 
         this.update = this.update.bind(this)
-        this.getAndPush = this.getAndPush.bind(this)
-        this.pushToGameService = this.pushToGameService.bind(this)
         this.updateGame = this.updateGame.bind(this)
-        this.get = this.get.bind(this)
+        this.getFromDbOrRefresh = this.getFromDbOrRefresh.bind(this)
+        this.getFromDb = this.getFromDb.bind(this)
     }
 
-    update(game: Game): Promise<GameStats | undefined> {
+    update(game: Game): Promise<GameStats | undefined> {
         if (game == undefined){
             return Promise.resolve(undefined)
         }
-        return this.updateGame(game.game_uuid, game.game_id).then(e => {
-            return this.pushToGameService(game, e)
-        })
+        return this.updateGame(game.game_uuid, game.game_id)
     }
 
-    getAndPush(game: Game): Promise<GameStats | undefined> {
-        if (game == undefined){
-            return Promise.resolve(game)
+    getFromDbOrRefresh(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
+        const cached = this.getFromDb(game_uuid)
+        if (cached) {
+            return Promise.resolve(cached)
         }
-        return this.get(game.game_uuid, game.game_id).then(e => this.pushToGameService(game, e))
-    }
+        return this.updateGame(game_uuid, game_id)
+    } 
 
-    pushToGameService(game: Game, gameStats: GameStats | undefined): Promise<GameStats | undefined> {
-        if (gameStats == undefined || gameStats.recaps == undefined) {
-            return Promise.resolve(gameStats)
+    getFromDb(game_uuid: string): GameStats | undefined {
+        const cached = this.db.readCached()?.[game_uuid]
+        if (!cached) {
+            return undefined
         }
-        return this.gameService
-                .updateGoals(game.game_uuid, game.game_id, gameStats.recaps.gameRecap?.homeG, gameStats.recaps.gameRecap?.awayG)
-                .then(a => gameStats)
+        return new GameStats(cached)
     }
 
-    updateGame(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
+    private updateGame(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
         return this.client.getGameStats(game_uuid, game_id).then(stats => {
-            if (!stats || stats.recaps == undefined) {
+            if (!stats || stats.recaps == undefined) {
                 return Promise.resolve(undefined)
             }
             return this.db.read().then(old => {
-                const toWrite = old || {}
-                toWrite[game_uuid] = this.normalize(stats)
+                const toWrite = old || {}
+                toWrite[game_uuid] = stats
 
                 return this.db.write(toWrite).then(e => stats)
             })
         }).catch(e => {
             console.error('[SERVICE] Failed to update GameStats', game_uuid, e?.toString())
-            return this.getFromDb(game_uuid, game_id)
+            return Promise.resolve(this.getFromDb(game_uuid))
         })
-    }
-
-    get(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
-        return this.db.read().then(map => {
-            const stored = map?.[game_uuid]
-            if (stored) {
-                return stored
-            }
-            return this.updateGame(game_uuid, game_id)
-        })
-    } 
-
-    private getFromDb(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
-        return this.db.read().then(map => {
-            const stored = map?.[game_uuid]
-            return Promise.resolve(stored)
-        })
-    }
-
-    private normalize(stats: GameStats): GameStats {
-        if (stats.recaps && Array.isArray(stats.recaps.gameRecap)) {
-            // gameRecap is empty array if empty, convert to undefined instead
-            stats.recaps.gameRecap = undefined
-        }
-        if (stats.playersByTeam && Array.isArray(stats.playersByTeam)) {
-            // playersByTeam is empty array if empty, convert to undefined instead
-            stats.playersByTeam = undefined
-        }
-        return stats
     }
 }
 

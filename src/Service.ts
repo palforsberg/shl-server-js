@@ -20,6 +20,7 @@ class Service<T> {
       this.expiryDelta = expiryDelta * 1000
       this.service = service.bind(this)
    }
+
    fromData(data: T): Promise<WrappedObject<T>> {
       return Promise.resolve({ timestamp: new Date().toString(), data })
    }
@@ -33,8 +34,7 @@ class Service<T> {
     * If error occurs, will log and just ignore the response and will not update the database
     * @returns A promise with the updated entity or the old entity if cache not expired or error occured
     */
-   update(): Promise<T> {
-      const name = this.db.db.name
+   update(): Promise<T | undefined> {
       return this.db.db.read().then((wrapped: WrappedObject<T>) => {
          if (wrapped == undefined) { // nothing has been stored yet, need to update
             return this.service().then(this.db.write)
@@ -49,14 +49,14 @@ class Service<T> {
       })
    }
 
-   hasExpired(timestamp?: string) {
+   hasExpired(timestamp?: string): boolean {
       if (this.expiryDelta == 0) {
          return true
       }
       if (this.expiryDelta < 0) {
          return false
       }
-      const diff = new Date().getTime() - new Date(timestamp || 0).getTime()
+      const diff = new Date().getTime() - new Date(timestamp || 0).getTime()
       return diff > this.expiryDelta
    }
 }

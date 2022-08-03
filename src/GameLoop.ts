@@ -2,16 +2,15 @@ import { Config } from "./models/Config";
 import { Game } from "./models/Game";
 import * as GameComparer from './GameComparer'
 import { Notifier } from "./Notifier";
-import { LiveGameService } from "./services/LiveGameSerive";
-import { GameService } from "./services/GameService";
+import { SeasonService } from "./services/SeasonService";
 import { StandingService } from "./services/StandingService";
 import { UserService } from "./services/UserService";
 import { GameStatsService } from "./services/GameStatsService";
 import { User } from "./models/User";
+import { GameStats } from "./models/GameStats";
 
 class GameLoop {
-    private liveGamesService: LiveGameService
-    private gameService: GameService
+    private seasonService: SeasonService
     private standingsService: StandingService
     private userService: UserService
     private gameStatsService: GameStatsService
@@ -19,16 +18,14 @@ class GameLoop {
 
     constructor(
         config: Config,
-        liveGamesService: LiveGameService,
-        gameService: GameService,
+        seasonService: SeasonService,
         userService: UserService,
         gameStatsService: GameStatsService,
         currentStanding: StandingService) {
 
          this.loop = this.loop.bind(this)
          this.gameJob = this.gameJob.bind(this)
-         this.liveGamesService = liveGamesService
-         this.gameService = gameService
+         this.seasonService = seasonService
          this.standingsService = currentStanding
          this.userService = userService
          this.gameStatsService = gameStatsService
@@ -38,41 +35,46 @@ class GameLoop {
     loop() {
         console.log('[LOOP] ******* Begin ********')
         this.gameJob()
-           .then(this.liveGamesService.db.read)
-           .then((liveGames: Game[]) => {
-              var delay = liveGames.length > 0 ? 3 : 60
+           .then((liveGames: [GameStats | undefined, GameStats | undefined][]) => {
+              var delay = liveGames.length > 0 ? 3 : 60 * 10
               setTimeout(this.loop, delay * 1000)
               console.log(`[LOOP] ******* End ********** next in ${delay}s`)
            })
            .catch(e => {
-               var delay = 3
+               var delay = 60
                setTimeout(this.loop, delay * 1000)
                console.error(`[LOOP] Error ${JSON.stringify(e)}`)
                console.log(`[LOOP] ******* Ended with Error ******* next in ${delay}s`)
            })
-     }
-     
-    private gameJob() {
-        return this.liveGamesService.db.read().then(oldLiveGames => 
-         this.standingsService.getCurrentSeason().update()
-              .then(this.gameService.getCurrentSeason().update)
-              // find all live games
-              .then(this.liveGamesService.update)
-              // overwrite goals from gamestats before retriving them again
-              .then(liveGames => Promise.all(liveGames.map(e => this.gameStatsService.getAndPush(e))).then(a => liveGames))
-              // fetch game stats for those games
-              .then(liveGames => Promise.all(liveGames.map(e => this.gameStatsService.update(e))))
-              // update the live games again with the updated stats
-              .then(this.liveGamesService.update)
-              .then((liveGames: Game[]) => {
-                 const events = GameComparer.compare(oldLiveGames || [], liveGames)
+    }
 
-                 return this.userService.db.read().then((us: User[]) => {
-                    this.notifier.notify(events, us || [])
-                    return Promise.resolve()
-                 })
-              }))
-     }
+    private async gameJob(): Promise<[GameStats | undefined, GameStats | undefined][]> {
+        await this.standingsService.getCurrentSeason().update()
+        const season = await this.seasonService.update()
+        const liveGames = SeasonService.getLiveGames(season || [])
+
+        return Promise.all(liveGames.map(async lg => {
+            const stats = await this.updateStats(lg)
+            const event = GameComparer.compare(stats)
+            if (!event) return Promise.resolve(stats)
+            
+            const users = (await this.userService.db.read()) || []
+            await this.notifier.notify(event, users)
+            return stats
+        }))
+    }
+    
+    private updateStats(game: Game): Promise<[GameStats | undefined, GameStats | undefined]> {
+        const old = this.gameStatsService.getFromDb(game.game_uuid)
+        return this.gameStatsService
+            .update(game)
+            .then(newStats => {
+                // update season to make sure season and stats are in-sync
+                return this.seasonService
+                    .updateFromStats(game.game_uuid, newStats)
+                    .then(e => Promise.resolve([old, newStats]))
+            })
+    }
 }
 
 export {

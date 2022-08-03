@@ -33,6 +33,10 @@ class Db<T> {
          .catch((e: FileError) => Db.handleError(e, this.name))
    }
 
+   readCached(): T | undefined {
+      return this.in_mem
+   }
+
    storeInMemory(data: T): Promise<T> {
       this.in_mem = data
       this.hasReadFromDb = true

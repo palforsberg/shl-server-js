@@ -3,30 +3,165 @@
  */
 
 interface Player {
-  player: number
-  team: string
-  firstName: string
-  familyName: string
-  toi: string
-  jersey: number
-  g: number
-  a: number
-  pim: number
+    player: number
+    team: string
+    firstName: string
+    familyName: string
+    jersey: number
+    position: string
+    line: number
+
+    // Player stats
+    toi?: string
+    toiSeconds?: number
+    g?: number
+    a?: number
+    pim?: number
+    sog?: number
+    // On ice when score (+)
+    pop?: number
+    // On ice when scored against (-)
+    nep?: number
+
+    // Goal keeper stats
+    // goal against
+    tot_ga?: number
+    // shots on goal against
+    tot_soga?: number
+    // saves
+    tot_svs?: number
 }
 
 interface PlayersOnTeam {
-  GK: [],
-  players: Player[],
+    GK: Player[],
+    players: Player[],
 }
-interface GameStats {
+
+
+class GameStatsIf {
+    game_uuid: string
     recaps?: {
         0?: Period,
         1?: Period,
         2?: Period,
+        3?: Period,
+        4?: Period,
         gameRecap?: Period,
-    },
-    gameState: string,
-    playersByTeam?: Record<string, PlayersOnTeam>,
+    };
+    gameState: string;
+    playersByTeam?: Record<string, PlayersOnTeam>;
+  
+    constructor() {
+      this.gameState = ''
+      this.game_uuid = ''
+    }
+}
+
+class GameStats extends GameStatsIf {
+    constructor(stats: GameStatsIf) {
+        super()
+        this.recaps = stats.recaps
+        this.gameState = stats.gameState
+        this.playersByTeam = stats.playersByTeam
+        this.game_uuid = stats.game_uuid
+    
+        if (this.recaps && Array.isArray(this.recaps.gameRecap)) {
+            // gameRecap is empty array if empty, convert to undefined instead
+            this.recaps.gameRecap = undefined
+        }
+        if (this.playersByTeam && Array.isArray(this.playersByTeam)) {
+            // playersByTeam is empty array if empty, convert to undefined instead
+            this.playersByTeam = undefined
+        }
+
+        this.getHomeTeamId = this.getHomeTeamId.bind(this)
+        this.getAwayTeamId = this.getAwayTeamId.bind(this)
+        this.getHomeResult = this.getHomeResult.bind(this)
+        this.getAwayResult = this.getAwayResult.bind(this)
+        this.isPlayed = this.isPlayed.bind(this)
+        this.isLive = this.isLive.bind(this)
+        this.getHomeTeam = this.getHomeTeam.bind(this)
+        this.getAwayTeam = this.getAwayTeam.bind(this)
+        this.getTeam = this.getTeam.bind(this)
+        this.getCurrentPeriodFormatted = this.getCurrentPeriodFormatted.bind(this)
+        this.getCurrentPeriod = this.getCurrentPeriod.bind(this)
+    }
+
+    getHomeTeamId(): string {
+      return this.recaps?.gameRecap?.homeTeamId || ''
+    }
+
+    getAwayTeamId(): string {
+      return this.recaps?.gameRecap?.awayTeamId || ''
+    }
+
+    getHomeResult(): number {
+      return this.recaps?.gameRecap?.homeG || 0
+    }
+
+    getAwayResult(): number {
+      return this.recaps?.gameRecap?.awayG || 0
+    }
+
+    isPlayed(): boolean {
+      return this.gameState == 'GameEnded'
+    }
+
+    isLive(): boolean {
+      return this.gameState == 'Ongoing'
+    }
+
+    getHomeTeam(): Player[] {
+      return this.getTeam(this.recaps?.gameRecap?.homeTeamId)
+    }
+
+    getAwayTeam(): Player[] {
+      return this.getTeam(this.recaps?.gameRecap?.awayTeamId)
+    }
+
+    getCurrentPeriodFormatted(): string {
+      const p = this.getCurrentPeriod()
+      switch (p) {
+        case 4:
+        case 5:
+          return 'övertid'
+        case 3:
+          return '3:e perioden'
+        case 2:
+          return '2:a perioden'
+        case 1:
+        default:
+          return '1:a perioden'
+      }
+    }
+
+    getCurrentPeriod(): number {
+      // TODO: check status for period
+      if (this.recaps?.[4]) {
+        return 5
+      } else if (this.recaps?.[3]) {
+        return 4
+      } if (this.recaps?.[2]) {
+        return 3
+      } else if (this.recaps?.[1]) {
+        return 2
+      }
+      return 1
+    }
+
+    private getTeam(team?: string): Player[] {
+      if (!team) {
+        return []
+      }
+      return this.playersByTeam?.[team]?.players || []
+    }
+
+    static empty(): GameStats {
+        return new GameStats({
+            gameState: '',
+            game_uuid: '',
+        })
+    }
 }
 
 interface Period {
@@ -37,6 +172,9 @@ interface Period {
     homeHits: number,
     awaySOG: number,
     homeSOG: number,
+
+    awayTeamId: string,
+    homeTeamId: string,
 
     /**
      * PIM : Penalty Infraction Minutes
@@ -51,13 +189,25 @@ interface Period {
     awayFOW: number,
 }
 
+export {
+  GameStats,
+  Player,
+  GameStatsIf,
+  PlayersOnTeam,
+  Period,
+}
+
 /** example
  * SPG: Shots Past Goal
  * GA: Goals Against
  * {
   playersByTeam: {
     RBK: { GK: [Array], players: [Array] },
-    VLH: { GK: [Array], players: [Array] }
+    VLH: { GK: [
+      {"player":4200,"game":15128,"team":"FBK","jersey":38,"line":-1,"position":"GK","firstName":"Dominik","familyName":"Furch","pim":0,"actiontype":"new","teamId":"752c-752c12zB7Z","tot_ga":0,"tot_soga":17,"tot_spga":12,"tot_svs":17,"tot_svs_perc":1,"tot_nonso_svs_perc":1}
+    ], 
+      players: [
+      {"player":3018,"game":15128,"team":"FBK","jersey":59,"line":1,"position":"CE","firstName":"Linus","familyName":"Johansson","pim":0,"actiontype":"new","teamId":"752c-752c12zB7Z","hits":0,"g":1,"a":0,"toi":"17:05","shg":0,"ppg":0,"fo_perc":50,"sw":1,"sog":1,"ppsog":0,"nep":0,"pop":1,"netPlusMinus":1,"tp":0,"fo_tot":0,"fow":7,"fol":7},] }
   },
   recaps: {
     '0': {

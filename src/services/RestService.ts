@@ -2,7 +2,7 @@ import { Config } from "../models/Config";
 import { Team } from "../models/Team";
 import { User } from "../models/User";
 import { Notifier } from "../Notifier";
-import { GameService } from "./GameService";
+import { SeasonService } from "./SeasonService";
 import { GameStatsService } from "./GameStatsService";
 import { StandingService } from "./StandingService";
 import { TeamsService } from "./TeamsService";
@@ -10,7 +10,7 @@ import { UserService } from "./UserService";
 
 class RestService {
     private config: Config
-    private gamesServices: GameService
+    private seasonServices: Record<number, SeasonService>
     private standingServices: StandingService
     private users: UserService
     private statsService: GameStatsService
@@ -21,7 +21,7 @@ class RestService {
     constructor(
         app: any,
         config: Config,
-        gamesServices: GameService,
+        seasonServices: Record<number, SeasonService>,
         standingServices: StandingService,
         users: UserService,
         statsService: GameStatsService,
@@ -29,7 +29,7 @@ class RestService {
     ) {
         this.app = app
         this.config = config
-        this.gamesServices = gamesServices
+        this.seasonServices = seasonServices
         this.standingServices = standingServices
         this.users = users
         this.statsService = statsService
@@ -45,7 +45,7 @@ class RestService {
     setupRoutes() {
 
         this.app.get('/games/:season', (req: any, res: any) => {
-            const season = this.gamesServices.getSeason(req.params.season)
+            const season = this.seasonServices[req.params.season]
             if (!season) {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
@@ -53,7 +53,7 @@ class RestService {
          })
          
          this.app.get('/game/:game_uuid/:game_id', (req: any, res: any) => {
-            return this.statsService.get(req.params.game_uuid, req.params.game_id).then(stats => {
+            return this.statsService.getFromDbOrRefresh(req.params.game_uuid, req.params.game_id).then(stats => {
                if (stats == undefined) {
                   return res.status(404).send('Could not find game')
                }
@@ -67,13 +67,13 @@ class RestService {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
             return standing.db.read().then(s => {
-               if (s == undefined || s.length == 0) {
-                  const season = this.gamesServices.getSeason(req.params.season)
+               if (s == undefined || s.length == 0) {
+                  const season = this.seasonServices[req.params.season]
                   if (!season) {
                       return Promise.resolve()
                   }
                   return season.db.read().then(g => 
-                    res.send(JSON.stringify(StandingService.getEmptyStandingsFrom(g || [])))) 
+                    res.send(JSON.stringify(StandingService.getEmptyStandingsFrom(g || [])))) 
                } else {
                   return res.send(JSON.stringify(s))
                }
@@ -92,19 +92,6 @@ class RestService {
             const teams = this.teamsService.db.read()
             return teams.then((e: Team[]) => res.send(JSON.stringify(e)))
          })
-         
-         this.app.post('/push', (req: any, res: any) => {
-            const pass = req.body.admin_password
-            if (pass !== this.config.admin_password) {
-               return res.status(403).send('Not authorized')
-            }
-            const msg = req.body.message
-            return this.users.db.read().then((us: User[]) => {
-               us.forEach(u => this.notifier.sendNotificationMsg(u, msg)) 
-               res.send(`Sent notification to ${us.length} users`)
-            })
-         })
-         
     }
 }
 

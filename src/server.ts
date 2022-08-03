@@ -7,8 +7,7 @@ import { Config } from './models/Config'
 import { GameStatsService } from './services/GameStatsService'
 import { TeamsService } from './services/TeamsService'
 import { UserService } from './services/UserService'
-import { LiveGameService } from './services/LiveGameSerive'
-import { GameService } from './services/GameService'
+import { SeasonService } from './services/SeasonService'
 import { StandingService } from './services/StandingService'
 import { RestService } from './services/RestService'
 import express from 'express'
@@ -22,23 +21,27 @@ setupLogger(config)
 console.log('')
 console.log('[SERVER] Starting...', JSON.stringify({ port: config.port, production: config.production }))
 
-const shl = new SHL(config.shl_client_id, config.shl_client_secret)
+const shl = new SHL(config)
 
 const currentSeason = 2022
 const nrSeasons = 4
 
 const teamsService = new TeamsService()
 const users = new UserService()
-const gameService = new GameService(currentSeason, nrSeasons, shl)
 const standingsService = new StandingService(currentSeason, nrSeasons, shl)
 
-const statsService = new GameStatsService(shl, gameService)
-const liveGamesService = new LiveGameService(gameService.getCurrentSeason())
+const statsService = new GameStatsService(shl)
+const seasonService = new SeasonService(currentSeason, 60, shl, statsService)
+const seasonServices = {
+   2022: seasonService,
+   2021: new SeasonService(2021, -1, shl, statsService),
+   2020: new SeasonService(2020, -1, shl, statsService),
+   2019: new SeasonService(2019, -1, shl, statsService),
+}
 
 const gameLoop = new GameLoop(
    config,
-   liveGamesService,
-   gameService,
+   seasonService,
    users,
    statsService,
    standingsService)
@@ -48,7 +51,7 @@ const app = express().use(express.json())
 const restService = new RestService(
    app,
    config,
-   gameService,
+   seasonServices,
    standingsService,
    users,
    statsService,
@@ -57,9 +60,12 @@ const restService = new RestService(
 restService.setupRoutes()
 restService.startListen(config.port)
 
-Object.entries(gameService.seasons).forEach(e => e[1].update())
+Object.entries(seasonServices).forEach(e => e[1].update())
 Object.entries(standingsService.seasons).forEach(e => e[1].update())
 
-if (config.production) {
-   gameLoop.loop()
+// Populate stats cache
+try {
+   statsService.db.read().then(() => gameLoop.loop())
+} catch (e) {
+   console.log('[SERVER] Loop threw ', e)
 }

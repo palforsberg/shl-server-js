@@ -30,9 +30,16 @@ interface Game {
     game_uuid: string,
     game_id: string,
     played: boolean,
+    overtime: boolean,
+    penalty_shots: false,
     start_date_time: Date,
     season: string,
     game_type: string,
+
+    /**
+     * From GameStats
+     */
+    period?: number,
 }
 
 export {

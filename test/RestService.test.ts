@@ -6,7 +6,7 @@ import { Request } from 'jest-express/lib/request';
 import { Response } from 'jest-express/lib/response';
 import { User } from '../src/models/User';
 
-import { GameService } from "../src/services/GameService"
+import { SeasonService } from "../src/services/SeasonService"
 import { GameStatsService } from "../src/services/GameStatsService"
 import { RestService } from "../src/services/RestService"
 import { StandingService } from "../src/services/StandingService"
@@ -29,11 +29,17 @@ mockApn()
 
 const season = 2030
 const config = getConfig()
-const shl = new SHL(config.shl_client_id, config.shl_client_secret, 1)
-const gameService = new GameService(season, 4, shl)
+const shl = new SHL(config, 1)
 
 const userService = new UserService()
-const gameStatsService = new GameStatsService(shl, gameService)
+const gameStatsService = new GameStatsService(shl)
+const seasonService = new SeasonService(season, 0, shl, gameStatsService)
+const seasonServices = {
+    2030: seasonService,
+    2021: new SeasonService(2021, -1, shl, gameStatsService),
+    2020: new SeasonService(2020, -1, shl, gameStatsService),
+    2019: new SeasonService(2019, -1, shl, gameStatsService),
+ }
 const standingsService = new StandingService(season, 4, shl)
 const teamsService = new TeamsService()
 
@@ -49,7 +55,7 @@ app.post = jest.fn().mockImplementation((e, fnc) => {
 const restService = new RestService(
     app,
     config,
-    gameService,
+    seasonServices,
     standingsService,
     userService,
     gameStatsService,
@@ -67,7 +73,7 @@ beforeEach(async () => {
 test('Get season', async () => {
     // Given
     const game = [getGame()]
-    await gameService.getCurrentSeason().db.write(game)
+    await seasonService.db.write(game)
     const req = new Request()
     req.setParams('season', season.toString())
     const res = new Response()
@@ -139,7 +145,7 @@ test('Get standings 404', async () => {
 test('Get empty standings', async () => {
     // Given
     const req = new Request()
-    await gameService.getCurrentSeason().db.write([getGame()])
+    await seasonService.db.write([getGame()])
     await standingsService.getCurrentSeason().db.write([])
     req.setParams('season', season.toString())
     const res = new Response()
