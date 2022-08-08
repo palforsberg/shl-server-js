@@ -9,11 +9,10 @@ class GameStatsService {
 
     constructor(client: SHL) {
         this.client = client
-        this.db = new Db<Record<string, GameStatsIf>>('game_stats')
+        this.db = new Db<Record<string, GameStatsIf>>('game_stats', {})
 
         this.update = this.update.bind(this)
         this.updateGame = this.updateGame.bind(this)
-        this.getFromDbOrRefresh = this.getFromDbOrRefresh.bind(this)
         this.getFromDb = this.getFromDb.bind(this)
     }
 
@@ -24,16 +23,8 @@ class GameStatsService {
         return this.updateGame(game.game_uuid, game.game_id)
     }
 
-    getFromDbOrRefresh(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
-        const cached = this.getFromDb(game_uuid)
-        if (cached) {
-            return Promise.resolve(cached)
-        }
-        return this.updateGame(game_uuid, game_id)
-    } 
-
     getFromDb(game_uuid: string): GameStats | undefined {
-        const cached = this.db.readCached()?.[game_uuid]
+        const cached = this.db.readCached()[game_uuid]
         if (!cached) {
             return undefined
         }

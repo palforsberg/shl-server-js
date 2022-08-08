@@ -31,7 +31,7 @@ class Notifier {
      */
     notify(event: GameEvent, users: User[]): Promise<[User, string | undefined][]> {
         if (!this.send) {
-            console.log('[NOTIFIER] Muted ', event.toString())
+            console.log('[NOTIFIER] Muted', event.toString())
             return Promise.resolve(users.map(e => ([e, undefined])))
         }
         return Promise.all(users

@@ -10,7 +10,7 @@ class StandingService {
     constructor(currentSeason: number, numberSeasons: number, shl: SHL) {
         this.seasons = {}
         for (let i = currentSeason; i >= currentSeason - numberSeasons; i--) {
-            this.seasons[i] = new Service(`standings_${i}`, () => shl.getStandings(i), i == currentSeason ? 10 * 60 : -1)
+            this.seasons[i] = new Service(`standings_${i}`, [], () => shl.getStandings(i), i == currentSeason ? 10 * 60 : -1)
          }
          this.getCurrentSeason = () => this.seasons[currentSeason]
     }

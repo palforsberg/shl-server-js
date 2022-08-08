@@ -3,11 +3,15 @@ class User {
     id: string
     teams: string[]
     apn_token?: string
+    ios_version?: string
+    app_version?: string
 
-    constructor(id: string, teams: string[], apn_token?: string) {
+    constructor(id: string, teams: string[], apn_token?: string, ios_version?: string, app_version?: string) {
         this.id = id?.toString()
         this.teams = teams
         this.apn_token = apn_token
+        this.ios_version = ios_version
+        this.app_version = app_version
     }
 
     isValid(): boolean {

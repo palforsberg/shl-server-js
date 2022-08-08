@@ -5,7 +5,7 @@ class UserService {
     db: Db<User[]>
 
     constructor() {
-        this.db = new Db<User[]>('users')
+        this.db = new Db<User[]>('users', [])
     }
 
     addUser(user: User): Promise<User[]> {

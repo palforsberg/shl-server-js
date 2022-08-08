@@ -5,54 +5,55 @@ interface FileError {
 }
 class Db<T> {
    in_mem?: T
-   hasReadFromDb: boolean
    name: string
+   defaultValue: T
 
-   constructor(name: string) {
+   constructor(name: string, defaultValue: T) {
       this.name = name
-      this.hasReadFromDb = false
+      this.defaultValue = defaultValue
       this.read = this.read.bind(this)
       this.write = this.write.bind(this)
       this.storeInMemory = this.storeInMemory.bind(this)
+      this.handleError = this.handleError.bind(this)
    }
 
    write(data: T): Promise<T> {
+      this.storeInMemory(data)
       return fs.promises.writeFile(Db.getPath(this.name), JSON.stringify(data, null, 2))
-         .catch((e: FileError) => Db.handleError(e, this.name))
-         .then(() => this.storeInMemory(data))
+         .catch((e: FileError) => this.handleError(e, this.name))
+         .then((e: any) => data)
    }
    
    read(): Promise<T> {
-      if (this.hasReadFromDb) {
-         return Promise.resolve(this.in_mem!)
+      if (this.in_mem) {
+         return Promise.resolve(this.in_mem)
       }
       console.log(`[DB] read ${this.name} from file`)
       return fs.promises.readFile(Db.getPath(this.name))
          .then(JSON.parse)
-         .then((data: T) => this.storeInMemory(data))
-         .catch((e: FileError) => Db.handleError(e, this.name))
+         .catch((e: FileError) => this.handleError(e, this.name))
+         .then((data: T | undefined) => this.storeInMemory(data || this.defaultValue))
    }
 
-   readCached(): T | undefined {
-      return this.in_mem
+   readCached(): T {
+      return this.in_mem || this.defaultValue
    }
 
-   storeInMemory(data: T): Promise<T> {
+   private storeInMemory(data: T): T {
       this.in_mem = data
-      this.hasReadFromDb = true
-      return Promise.resolve(data)
+      return data
    }
    
-   static handleError(e: FileError, db: string) {
+   private handleError(e: FileError, db: string): T {
       if (e.code == 'ENOENT') {
          console.log('[DB] could not find db-file', db)
       } else {
          console.error('[DB] ERROR reading', e)
       }
-      return undefined
+      return this.in_mem || this.defaultValue
    }
    
-   static getPath(db: string) {
+   private static getPath(db: string) {
       return `./db/${db}.json`
    }
 }

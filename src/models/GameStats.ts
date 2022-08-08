@@ -158,6 +158,8 @@ class GameStats extends GameStatsIf {
 
     static empty(): GameStats {
         return new GameStats({
+            recaps: {},
+            playersByTeam: {},
             gameState: '',
             game_uuid: '',
         })

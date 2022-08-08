@@ -14,6 +14,7 @@ import { TeamsService } from "../src/services/TeamsService"
 import { UserService } from "../src/services/UserService"
 import { SHL } from "../src/ShlClient"
 import { getConfig, getGame, getGameStats, getStanding, mockApn, mockAxios } from "./utils"
+import { GameStats } from '../src/models/GameStats';
 
 jest.mock("fs")
 jest.mock("axios")
@@ -73,7 +74,7 @@ beforeEach(async () => {
 test('Get season', async () => {
     // Given
     const game = [getGame()]
-    await seasonService.db.write(game)
+    await seasonService.write(game)
     const req = new Request()
     req.setParams('season', season.toString())
     const res = new Response()
@@ -114,7 +115,7 @@ test('Get not found season', () => {
 test('Get standings', async () => {
     // Given
     const standings = [getStanding()]
-    await standingsService.getCurrentSeason().db.write(standings)
+    await standingsService.getCurrentSeason().write(standings)
     const req = new Request()
     req.setParams('season', season.toString())
     const res = new Response()
@@ -145,8 +146,8 @@ test('Get standings 404', async () => {
 test('Get empty standings', async () => {
     // Given
     const req = new Request()
-    await seasonService.db.write([getGame()])
-    await standingsService.getCurrentSeason().db.write([])
+    await seasonService.write([getGame()])
+    await standingsService.getCurrentSeason().write([])
     req.setParams('season', season.toString())
     const res = new Response()
 
@@ -191,9 +192,8 @@ test('Get game stats', async () => {
 test('Get non existing game stats', async () => {
     // Given - not stored but available game stats
     const game = getGame()
-    const stats = getGameStats()
     const req = new Request()
-    mockAxios(axios, [], stats)
+    mockAxios(axios, [], undefined)
     req.setParams('game_uuid', game.game_uuid)
     req.setParams('game_id', game.game_id)
     const res = new Response()
@@ -203,8 +203,7 @@ test('Get non existing game stats', async () => {
 
     // Then
     expect(res.send).toHaveBeenCalledTimes(1)
-    const body = JSON.parse(res.body)
-    expect(body).toStrictEqual(stats)
+    expect(res.body).toBe(JSON.stringify(GameStats.empty()))
 })
 
 test('Get non existing game stats, not found at all', async () => {
@@ -221,8 +220,7 @@ test('Get non existing game stats, not found at all', async () => {
 
     // Then
     expect(res.send).toHaveBeenCalledTimes(1)
-    expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.body).toBe('Could not find game')
+    expect(res.body).toBe(JSON.stringify(GameStats.empty()))
 })
 
 test('Get game stats, no params', async () => {
@@ -237,13 +235,12 @@ test('Get game stats, no params', async () => {
 
     // Then
     expect(res.send).toHaveBeenCalledTimes(1)
-    expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.body).toBe('Could not find game')
+    expect(res.body).toBe(JSON.stringify(GameStats.empty()))
 })
 
 test('Post user', async () => {
     // Given
-    const user: User = new User('123', ['LHF'], 'apn_token')
+    const user: User = new User('123', ['LHF'], 'apn_token', '16.0.0', 'v0.1.4')
     const req = new Request()
     req.setBody(user)
     const res = new Response()
@@ -259,6 +256,10 @@ test('Post user', async () => {
     expect(users.length).toBe(1)
     const addedUser = users[0]
     expect(addedUser.id).toBe('123')
+    expect(addedUser.teams).toStrictEqual(['LHF'])
+    expect(addedUser.apn_token).toBe('apn_token')
+    expect(addedUser.ios_version).toBe('16.0.0')
+    expect(addedUser.app_version).toBe('v0.1.4')
 })
 
 test('Post user garbage data', async () => {
@@ -317,7 +318,7 @@ test('Post user without apn_token', async () => {
     var users = await userService.db.read()
     expect(users.length).toBe(1)
 
-    // When - first add user
+    // When - add user without a apn_token
     user.apn_token = undefined
     req.setBody(user)
     await postServices['/user'](req, res)
@@ -341,7 +342,7 @@ test('Post user without any team', async () => {
     var users = await userService.db.read()
     expect(users.length).toBe(1)
 
-    // When - first add user
+    // When - adding user without any teams
     user.teams = []
     req.setBody(user)
     await postServices['/user'](req, res)

@@ -7,6 +7,7 @@ import { GameStatsService } from "./GameStatsService";
 import { StandingService } from "./StandingService";
 import { TeamsService } from "./TeamsService";
 import { UserService } from "./UserService";
+import { GameStats } from "../models/GameStats";
 
 class RestService {
     private config: Config
@@ -49,16 +50,12 @@ class RestService {
             if (!season) {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
-            return season.db.read().then(s => res.send(JSON.stringify(s)))
+            return season.read().then(s => res.send(JSON.stringify(s)))
          })
          
          this.app.get('/game/:game_uuid/:game_id', (req: any, res: any) => {
-            return this.statsService.getFromDbOrRefresh(req.params.game_uuid, req.params.game_id).then(stats => {
-               if (stats == undefined) {
-                  return res.status(404).send('Could not find game')
-               }
-               return res.send(JSON.stringify(stats))
-            })
+            const stats = this.statsService.getFromDb(req.params.game_uuid) || GameStats.empty()
+            return res.send(JSON.stringify(stats))
          })
          
          this.app.get('/standings/:season', (req: any, res: any) => {
@@ -66,13 +63,13 @@ class RestService {
             if (!standing) {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
-            return standing.db.read().then(s => {
+            return standing.read().then(s => {
                if (s == undefined || s.length == 0) {
                   const season = this.seasonServices[req.params.season]
                   if (!season) {
                       return Promise.resolve()
                   }
-                  return season.db.read().then(g => 
+                  return season.read().then(g => 
                     res.send(JSON.stringify(StandingService.getEmptyStandingsFrom(g || [])))) 
                } else {
                   return res.send(JSON.stringify(s))
@@ -81,7 +78,13 @@ class RestService {
          })
          
          this.app.post('/user', (req: any, res: any) => {
-            const user: User = new User(req.body.id, req.body.teams, req.body.apn_token)
+            const user: User = new User(
+               req.body.id,
+               req.body.teams,
+               req.body.apn_token,
+               req.body.ios_version,
+               req.body.app_version
+            )
             if (!user.isValid()) {
                 return res.status(500)
             }
@@ -89,8 +92,7 @@ class RestService {
          })
          
          this.app.get('/teams', (req: any, res: any) => {
-            const teams = this.teamsService.db.read()
-            return teams.then((e: Team[]) => res.send(JSON.stringify(e)))
+            return res.send(JSON.stringify(TeamsService.getTeams()))
          })
     }
 }

@@ -46,13 +46,13 @@ jest.setTimeout(20_000_000)
 beforeEach(() => {
     sentNotification.mockClear()
     // @ts-ignore
-    seasonService.db.write(undefined)
+    seasonService.write([])
     Object.values(standingsService.seasons).forEach((e: any) => {
         // @ts-ignore
-        e.db.write(undefined)
+        e.write([])
     })
     // @ts-ignore
-    gameStatsService.db.write(undefined)
+    gameStatsService.db.write({})
 })
 
 test("Notify on started game", async () => {
@@ -64,7 +64,7 @@ test("Notify on started game", async () => {
     await looper.gameJob()
 
     // Then - Game should be saved
-    const games = await seasonService.db.read()
+    const games = await seasonService.read()
     expect(games.length).toBe(1)
     expect(games[0].home_team_code).toBe(getGame().home_team_code)
 
@@ -134,7 +134,7 @@ test("Notification on score, only from game stats", async () => {
     expect(stats.recaps?.gameRecap?.homeG).toBe(2)
     expect(stats.recaps?.gameRecap?.awayG).toBe(0)
 
-    var games = await seasonService.db.read()
+    var games = await seasonService.read()
     expect(games[0].home_team_result).toBe(2)
     expect(games[0].away_team_result).toBe(0)
 
@@ -150,7 +150,7 @@ test("Notification on score, only from game stats", async () => {
     expect(sentNotification.mock.calls[0][0].alert.body).toEqual('LHF 3 - 0 FBK\n1:a perioden')
 
     // GameStats should update the game db
-    games = await seasonService.db.read()
+    games = await seasonService.read()
     expect(games[0].home_team_result).toBe(3)
     expect(games[0].away_team_result).toBe(0)
     sentNotification.mockClear()
@@ -163,7 +163,7 @@ test("Notification on score, only from game stats", async () => {
     expect(sentNotification).toHaveBeenCalledTimes(0)
 
     // GameStats should update the game db
-    games = await seasonService.db.read()
+    games = await seasonService.read()
     expect(games[0].home_team_result).toBe(3)
     expect(games[0].away_team_result).toBe(0)
 })
@@ -221,8 +221,8 @@ test("SHL-client returns rejection for games", async () => {
     await looper.gameJob()
 
     // Then
-    const games = await seasonService.db.read()
-    expect(games).toBe(undefined)
+    const games = await seasonService.read()
+    expect(games).toStrictEqual([])
 })
 
 test("SHL-client returns error code with data in db for games", async () => {
@@ -230,7 +230,7 @@ test("SHL-client returns error code with data in db for games", async () => {
     await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
     mockAxios(axios, [getGame()], getGameStats())
     await looper.gameJob()
-    var games = await seasonService.db.read()
+    var games = await seasonService.read()
     expect(games.length).toBe(1)
 
     // Next request will be rejected
@@ -240,7 +240,7 @@ test("SHL-client returns error code with data in db for games", async () => {
     await looper.gameJob()
 
     // Then - game should still be in db
-    games = await seasonService.db.read()
+    games = await seasonService.read()
     expect(games.length).toBe(1)
 })
 
@@ -254,7 +254,7 @@ test("SHL-client returns error code with data", async () => {
     await looper.gameJob()
 
     // Then - stats should still be in db
-    const storedStats = await gameStatsService.getFromDbOrRefresh(getGame().game_uuid, getGame().game_id)
+    const storedStats = gameStatsService.getFromDb(getGame().game_uuid)
     expect(storedStats).toBeUndefined()
 })
 
@@ -272,7 +272,7 @@ test("SHL-client returns error code with data in db for stats", async () => {
     await looper.gameJob()
 
     // Then - stats should still be in db
-    const storedStats = await gameStatsService.getFromDbOrRefresh(getGame().game_uuid, getGame().game_id)
+    const storedStats = gameStatsService.getFromDb(getGame().game_uuid)
     expect(storedStats).toBeDefined()
     expect(storedStats?.playersByTeam).toBe(stats.playersByTeam)
     expect(storedStats?.gameState).toBe(stats.gameState)
@@ -290,8 +290,8 @@ test("SHL-client returns error on standings", async () => {
     await looper.gameJob()
 
     // Then
-    const standings = await standingsService.getCurrentSeason().db.read()
-    expect(standings).toBeUndefined()
+    const standings = await standingsService.getCurrentSeason().read()
+    expect(standings).toStrictEqual([])
 })
 
 test("SHL-client returns error on standings with standing in DB", async () => {
@@ -299,7 +299,7 @@ test("SHL-client returns error on standings with standing in DB", async () => {
     const standing = getStanding()
     mockAxios(axios, [getGame()], getGameStats(), [standing])
     await looper.gameJob()
-    var standings = await standingsService.getCurrentSeason().db.read()
+    var standings = await standingsService.getCurrentSeason().read()
     expect(standings.length).toBe(1)
     // Next request will reject
     mockAxiosFn(axios, 
@@ -311,7 +311,7 @@ test("SHL-client returns error on standings with standing in DB", async () => {
     await looper.gameJob()
 
     // Then - should still have same standing in DB
-    standings = await standingsService.getCurrentSeason().db.read()
+    standings = await standingsService.getCurrentSeason().read()
     expect(standings.length).toBe(1)
     expect(standings[0]).toBe(standing)
 })

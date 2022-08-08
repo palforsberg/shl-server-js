@@ -10,7 +10,7 @@ class SeasonService extends Service<Game[]> {
     gameStats: GameStatsService
 
     constructor(season: number, expiryDelta: number, shl: SHL, gameStats: GameStatsService) {
-        super(`games_${season}`, () => Promise.resolve([]), expiryDelta)
+        super(`games_${season}`, [], () => Promise.resolve([]), expiryDelta)
         this.shl = shl
         this.season = season
         this.gameStats = gameStats
@@ -21,9 +21,7 @@ class SeasonService extends Service<Game[]> {
     seasonService(): Promise<Game[]> {
         // get all games for season
         return this.shl.getGames(this.season.toString()).then(games => {
-            return games.map(g => {
-                return SeasonService.populate(g, this.gameStats.getFromDb(g.game_uuid))
-            })
+            return games.map(g => SeasonService.populate(g, this.gameStats.getFromDb(g.game_uuid)))
         })
     }
 
@@ -31,13 +29,13 @@ class SeasonService extends Service<Game[]> {
         if (!stats) {
             return Promise.resolve()
         }
-        return this.db.read().then(allGames => {
+        return this.read().then(allGames => {
             const gameIndex = allGames.findIndex(e => e.game_uuid == game_uuid)
             if (gameIndex < 0) {
                 return Promise.resolve([])
             }
             allGames[gameIndex] = SeasonService.populate(allGames[gameIndex], stats)
-            return this.db.write(allGames)
+            return this.write(allGames)
         })
     }
 

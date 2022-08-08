@@ -31,9 +31,8 @@ const users = new UserService()
 const standingsService = new StandingService(currentSeason, nrSeasons, shl)
 
 const statsService = new GameStatsService(shl)
-const seasonService = new SeasonService(currentSeason, 60 * 10, shl, statsService)
 const seasonServices = {
-   2022: seasonService,
+   2022: new SeasonService(currentSeason, 60 * 10, shl, statsService),
    2021: new SeasonService(2021, -1, shl, statsService),
    2020: new SeasonService(2020, -1, shl, statsService),
    2019: new SeasonService(2019, -1, shl, statsService),
@@ -41,7 +40,7 @@ const seasonServices = {
 
 const gameLoop = new GameLoop(
    config,
-   seasonService,
+   seasonServices[currentSeason],
    users,
    statsService,
    standingsService)
