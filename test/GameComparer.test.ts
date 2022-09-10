@@ -60,6 +60,7 @@ function getGame(): GameStats {
                 awayPIM: 0,
                 homeFOW: 0,
                 awayFOW: 0,
+                status: 'Finished',
             }
         }
     })

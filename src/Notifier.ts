@@ -7,6 +7,15 @@ var apn = require('apn')
 interface ApnResponse {
     failed: [],
 }
+class NotifyError extends Error {
+    user: User
+    failed: []
+    constructor(user: User, failed: []) {
+        super()
+        this.user = user
+        this.failed = failed
+    }
+}
 
 class Notifier {
     topic: string
@@ -29,10 +38,11 @@ class Notifier {
     /**
      * For each event, get a list of users to send notification to.
      */
-    notify(event: GameEvent, users: User[]): Promise<[User, string | undefined][]> {
+    notify(event: GameEvent | undefined, users: User[]): Promise<User[]> {
+        if (!event) return Promise.resolve(users)
         if (!this.send) {
             console.log('[NOTIFIER] Muted', event.toString())
-            return Promise.resolve(users.map(e => ([e, undefined])))
+            return Promise.resolve(users.map(e => (e)))
         }
         return Promise.all(users
             .filter(u => this.userHasSubscribed(u, event.game.getHomeTeamId(), event.game.getAwayTeamId()))
@@ -43,9 +53,9 @@ class Notifier {
         return user.teams.includes(team1) || user.teams.includes(team2)
     }
 
-    private sendNotificationMsg(user: User, event: GameEvent): Promise<[User, string | undefined]> {
+    private sendNotificationMsg(user: User, event: GameEvent): Promise<User> {
         if (user.apn_token == undefined) {
-            return Promise.resolve([user, undefined])
+            return Promise.resolve(user)
         }
 
         const usersTeam = user.teams.includes(event.team || '')
@@ -65,11 +75,10 @@ class Notifier {
  
         return this.apnConnection.send(note, user.apn_token).then((result: ApnResponse) => {
             if (result.failed.length > 0) {
-                console.error('[NOTIFIER] Failed to push notification ', JSON.stringify(result.failed))
-                return [user, JSON.stringify(result.failed)]
+                throw new NotifyError(user, result.failed)
             } else {
                 console.log(`[NOTIFIER] Sent ${event.toString()} to ${user.id}`)
-                return [user, undefined]
+                return user
             }
         })   
     }
@@ -78,4 +87,5 @@ class Notifier {
 
 export {
     Notifier,
+    NotifyError,
 }

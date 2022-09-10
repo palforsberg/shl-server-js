@@ -1,7 +1,7 @@
 
 import express, { Response, Request } from 'express'
 import { Game } from '../models/Game'
-import { GameStats, Period, Player } from '../models/GameStats'
+import { GameStats, PeriodStats, Player } from '../models/GameStats'
 import { Standing } from '../models/Standing'
 
 const app = express().use(express.json())
@@ -49,7 +49,9 @@ const season = new Season()
 const seasonGames = season.getAllGames()
 const standings = getStandings(teams)
 const gameStats = getAllGameStats(seasonGames)
+const nrUpdatesPerGame: Record<string, number> = {}
 console.log('Setup season of games: ', seasonGames.length)
+console.log('Live games ' + season.liveGames.map(e => e.home_team_code + ' vs ' + e.away_team_code).join(', '))
 
 loop()
 
@@ -57,8 +59,22 @@ function loop() {
     const liveGames = season.getRandomLiveGames()
     liveGames.forEach(e => {
         const stats = gameStats[e.game_uuid]
+        const nrUpdates = (nrUpdatesPerGame[e.game_uuid] || 0)
         if (stats.recaps?.gameRecap) {
-            if (rand() % 2 == 0) {
+            if (nrUpdates % 5 == 0) {
+                // new period
+                const period = stats.getCurrentPeriodNumber()
+                if (period == 3) {
+                    stats.gameState = 'GameEnded'
+                }
+                if (period == 2) {
+                    stats.recaps[2] = getPeriod(e, 3)
+                } else if (period == 1) {
+                    stats.recaps[1] = getPeriod(e, 2)
+                } else {
+                    stats.recaps[0] = getPeriod(e, 1)
+                }
+            } else if (rand() % 2 == 0) {
                 stats.recaps.gameRecap.awayG += 1
                 const player = getRandomPlayer(stats.playersByTeam?.[stats.getAwayTeamId()]?.players)
                 player!.g! += 1
@@ -68,6 +84,7 @@ function loop() {
                 player!.g! += 1
             }
         }
+        nrUpdatesPerGame[e.game_uuid] = nrUpdates + 1
     })
     console.log('Loop ', liveGames.map(e => e.game_uuid))
     setTimeout(loop, 60 * 1000)
@@ -114,8 +131,8 @@ function getGameStats(game: Game): GameStats {
                 }
             },
             recaps: {
-                0: getPeriod(game),
-                gameRecap: getPeriod(game),
+                0: getPeriod(game, 1),
+                gameRecap: getPeriod(game, 1),
             },
             gameState: 'Ongoing'
         })
@@ -135,8 +152,8 @@ function getGameStats(game: Game): GameStats {
                 }
             },
             recaps: {
-                0: getPeriod(game),
-                gameRecap: getPeriod(game),
+                0: getPeriod(game, 1),
+                gameRecap: getPeriod(game, 1),
             },
             gameState: 'GameEnded'
         })
@@ -151,9 +168,9 @@ function getGameStats(game: Game): GameStats {
 }
 
 
-function getPeriod(game: Game): Period {
+function getPeriod(game: Game, nr: number): PeriodStats {
     return {
-        periodNumber: 1,
+        periodNumber: nr,
         homeG: game.home_team_result,
         homeFOW: 0,
         homeHits: 0,
@@ -167,11 +184,12 @@ function getPeriod(game: Game): Period {
         awayPIM: 0,
         awaySOG: 0,
         awayTeamId: game.away_team_code,
+
+        status: 'Ongoing',
     }
 }
 function getLiveGame(e: number): Game {
     const g = generateSeasonGame('live', e);
-    g.start_date_time.setMilliseconds(0)
     g.start_date_time.setMinutes(g.start_date_time.getMinutes() - 5);
     return g
 }
@@ -179,17 +197,16 @@ function getLiveGame(e: number): Game {
 function getPlayedGame(e: number): Game {
     const g = generateSeasonGame('played', e);
     g.start_date_time.setMilliseconds(0)
-    g.start_date_time.setDate(g.start_date_time.getDate() - 5);
+    g.start_date_time.setDate(g.start_date_time.getDate() - 5 - (e * 2));
     g.played = true
     g.home_team_result = rand() % 6
     g.away_team_result = rand() % 4
-    g.period = 3
     return g
 }
 
 function getComingGame(e: number): Game {
     const g = generateSeasonGame('coming', e);
-    g.start_date_time.setDate(g.start_date_time.getDate() + 1);
+    g.start_date_time.setDate(g.start_date_time.getDate() + (e * 2));
     g.start_date_time.setMilliseconds(0)
     g.played = false
     return g
@@ -209,7 +226,7 @@ function generateSeasonGame(type: string, e: number): Game {
         start_date_time: new Date(),
         season: '2022',
         game_type: 'Season',
-        period: undefined,
+        periods: undefined,
     }
 }
 
@@ -219,7 +236,8 @@ function firstnames(): string[] {
         'Olle',
         'Molle',
         'Mats',
-        'Elsie'
+        'Elsie',
+        'Bibbi',
     ]
 }
 
@@ -228,7 +246,7 @@ function familynames(): string[] {
         'Persson',
         'Mollson',
         'Olsson',
-        'Forsberg'
+        'Forsberg',
     ]
 }
 

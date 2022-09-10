@@ -55,12 +55,10 @@ app.post = jest.fn().mockImplementation((e, fnc) => {
 
 const restService = new RestService(
     app,
-    config,
     seasonServices,
     standingsService,
     userService,
     gameStatsService,
-    teamsService
 )
 
 restService.setupRoutes()
@@ -240,7 +238,7 @@ test('Get game stats, no params', async () => {
 
 test('Post user', async () => {
     // Given
-    const user: User = new User('123', ['LHF'], 'apn_token', '16.0.0', 'v0.1.4')
+    const user: User = { id: '123', teams: ['LHF'], apn_token: 'apn_token', ios_version: '16.0.0', app_version: 'v0.1.4'}
     const req = new Request()
     req.setBody(user)
     const res = new Response()
@@ -304,9 +302,28 @@ test('Post user with number for ID', async () => {
     expect(users.length).toBe(1)
 })
 
+test('Post user with empty ID', async () => {
+    // Given
+    const user = {
+        apn_token: 'svejsan',
+        id: '',
+        teams: ['LHF'],
+    }
+    const req = new Request()
+    req.setBody(user)
+    const res = new Response()
+
+    // When
+    await postServices['/user'](req, res)
+
+    // Then - should add
+    const users = await userService.db.read()
+    expect(users.length).toBe(0)
+})
+
 test('Post user without apn_token', async () => {
     // Given
-    const user: User = new User('123', ['LHF'], 'apn_token')
+    const user: User = { id: 'user_1', teams: ['LHF'], apn_token: 'apn_token', ios_version: '16.0.0', app_version: 'v0.1.4'}
     const req = new Request()
     req.setBody(user)
     const res = new Response()
@@ -330,7 +347,7 @@ test('Post user without apn_token', async () => {
 
 test('Post user without any team', async () => {
     // Given
-    const user: User = new User('123', ['LHF'], 'apn_token')
+    const user: User = { id: 'user_1', teams: ['LHF'], apn_token: 'apn_token', ios_version: '16.0.0', app_version: 'v0.1.4'}
     const req = new Request()
     req.setBody(user)
     const res = new Response()

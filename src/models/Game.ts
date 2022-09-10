@@ -39,9 +39,31 @@ interface Game {
     /**
      * From GameStats
      */
-    period?: number,
+    periods?: AllPeriods,
+}
+
+interface AllPeriods {
+    0: Period,
+    1: Period,
+    2: Period,
+    3: Period,
+    4: Period,
+}
+
+interface Period {
+    periodNumber: number,
+    periodStatus: PeriodStatus,
+}
+
+enum PeriodStatus {
+    Ongoing,
+    Finished,
+    Unknown
 }
 
 export {
+    PeriodStatus,
+    Period,
+    AllPeriods,
     Game,
 }

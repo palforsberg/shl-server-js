@@ -57,7 +57,7 @@ beforeEach(() => {
 
 test("Notify on started game", async () => {
     // Given - SHL returns a live game and some stats
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxios(axios, [getGame()], getGameStats())
 
     // When - Loop has run
@@ -80,7 +80,7 @@ test("Notify on started game", async () => {
 
 test("No notifications if no update", async () => {
     // Given - SHL returns a live game and some stats
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxios(axios, [getGame()], getGameStats())
 
     // When - Loop has run twice with same underlying data
@@ -95,7 +95,7 @@ test("No notifications if no update", async () => {
 
 test("Notification on score", async () => {
     // Given - SHL returns a live game and some stats
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxios(axios, [getGame(2, 0)], getGameStats(2, 0))
 
     // When - Loop has run with game
@@ -117,7 +117,7 @@ test("Notification on score", async () => {
 
 test("Notification on score, only from game stats", async () => {
     // Given - SHL returns a live game and some stats
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxios(axios, [getGame(0, 0)], getGameStats(0, 0))
     await looper.gameJob()
     expect(sentNotification).toHaveBeenCalledTimes(1)
@@ -170,7 +170,7 @@ test("Notification on score, only from game stats", async () => {
 
 test("Notification game ended", async () => {
     // Given - SHL returns a live game and some stats
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxios(axios, [getGame(2, 0, false)], getGameStats())
 
     // When - Loop has run with game
@@ -196,7 +196,7 @@ test("Notification game ended", async () => {
 
 test("No live game", async () => {
     // Given - SHL returns a played game
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxios(axios, [getGame(2, 0, true)], getGameStats())
 
     // When - Loop has run with game, no notification
@@ -214,7 +214,7 @@ test("No live game", async () => {
 
 test("SHL-client returns rejection for games", async () => {
     // Given
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxiosFn(axios, () => Promise.reject(), () => Promise.resolve({ data: getGameStats() }))
 
     // When
@@ -227,7 +227,7 @@ test("SHL-client returns rejection for games", async () => {
 
 test("SHL-client returns error code with data in db for games", async () => {
     // Given - some entries in the db
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxios(axios, [getGame()], getGameStats())
     await looper.gameJob()
     var games = await seasonService.read()
@@ -246,7 +246,7 @@ test("SHL-client returns error code with data in db for games", async () => {
 
 test("SHL-client returns error code with data", async () => {
     // Given - some entries in the db
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     mockAxiosFn(axios, () => Promise.resolve({ data: [getGame()] }), () => Promise.reject('Bad request'))
 
     // Next request will be rejected
@@ -260,7 +260,7 @@ test("SHL-client returns error code with data", async () => {
 
 test("SHL-client returns error code with data in db for stats", async () => {
     // Given - some entries in the db
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     const stats = getGameStats()
     mockAxios(axios, [getGame()], stats)
     await looper.gameJob()
@@ -318,7 +318,7 @@ test("SHL-client returns error on standings with standing in DB", async () => {
 
 test('Test with gameStats.recaps being an array', async () => {
     // Given - SHL returns a live game and some stats
-    await userService.addUser(new User('user_1', ['LHF'], 'apn_token'))
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     const gameStats = getGameStats()
     // @ts-ignore
     gameStats.recaps!.gameRecap = []

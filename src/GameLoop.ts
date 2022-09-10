@@ -6,7 +6,6 @@ import { SeasonService } from "./services/SeasonService";
 import { StandingService } from "./services/StandingService";
 import { UserService } from "./services/UserService";
 import { GameStatsService } from "./services/GameStatsService";
-import { User } from "./models/User";
 import { GameStats } from "./models/GameStats";
 
 class GameLoop {
@@ -52,14 +51,13 @@ class GameLoop {
         await this.standingsService.getCurrentSeason().update()
         const season = await this.seasonService.update()
         const liveGames = SeasonService.getLiveGames(season || [])
-
+        const users = await this.userService.db.read() || []
+        
         return Promise.all(liveGames.map(async lg => {
             const stats = await this.updateStats(lg)
             const event = GameComparer.compare(stats)
-            if (!event) return Promise.resolve(stats)
-            
-            const users = (await this.userService.db.read()) || []
             await this.notifier.notify(event, users)
+                .catch(e => this.userService.handleNotificationError(e))
             return stats
         }))
     }

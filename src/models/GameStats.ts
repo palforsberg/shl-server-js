@@ -2,6 +2,8 @@
  * Stats of a single game.
  */
 
+import { AllPeriods, Period, PeriodStatus } from "./Game"
+
 interface Player {
     player: number
     team: string
@@ -41,12 +43,12 @@ interface PlayersOnTeam {
 class GameStatsIf {
     game_uuid: string
     recaps?: {
-        0?: Period,
-        1?: Period,
-        2?: Period,
-        3?: Period,
-        4?: Period,
-        gameRecap?: Period,
+        0?: PeriodStats,
+        1?: PeriodStats,
+        2?: PeriodStats,
+        3?: PeriodStats,
+        4?: PeriodStats,
+        gameRecap?: PeriodStats,
     };
     gameState: string;
     playersByTeam?: Record<string, PlayersOnTeam>;
@@ -85,6 +87,7 @@ class GameStats extends GameStatsIf {
         this.getTeam = this.getTeam.bind(this)
         this.getCurrentPeriodFormatted = this.getCurrentPeriodFormatted.bind(this)
         this.getCurrentPeriod = this.getCurrentPeriod.bind(this)
+        this.getCurrentPeriodNumber = this.getCurrentPeriodNumber.bind(this)
     }
 
     getHomeTeamId(): string {
@@ -120,7 +123,7 @@ class GameStats extends GameStatsIf {
     }
 
     getCurrentPeriodFormatted(): string {
-      const p = this.getCurrentPeriod()
+      const p = this.getCurrentPeriodNumber()
       switch (p) {
         case 4:
         case 5:
@@ -135,18 +138,29 @@ class GameStats extends GameStatsIf {
       }
     }
 
-    getCurrentPeriod(): number {
-      // TODO: check status for period
-      if (this.recaps?.[4]) {
-        return 5
-      } else if (this.recaps?.[3]) {
-        return 4
-      } if (this.recaps?.[2]) {
-        return 3
-      } else if (this.recaps?.[1]) {
-        return 2
+    getCurrentPeriod(): PeriodStats | undefined {
+      if (!this.recaps) {
+        return undefined
       }
-      return 1
+      const recap = [this.recaps[4],this.recaps[3],this.recaps[2],this.recaps[1],this.recaps[0]]
+        // TODO: check status for period
+        .find(e => e != undefined)
+      return recap || this.recaps[0]
+    }
+
+    getCurrentPeriodNumber(): number {
+      const recap = this.getCurrentPeriod()
+      return recap?.periodNumber || 1
+    }
+
+    getAllPeriods(): AllPeriods {
+      return {
+        0: periodFrom(1, this.recaps?.[0]),
+        1: periodFrom(2, this.recaps?.[1]),
+        2: periodFrom(3, this.recaps?.[2]),
+        3: periodFrom(4, this.recaps?.[3]),
+        4: periodFrom(5, this.recaps?.[4]),
+      }
     }
 
     private getTeam(team?: string): Player[] {
@@ -166,7 +180,7 @@ class GameStats extends GameStatsIf {
     }
 }
 
-interface Period {
+interface PeriodStats {
     periodNumber: number,
     awayG: number,
     homeG: number,
@@ -189,6 +203,23 @@ interface Period {
      */
     homeFOW: number,
     awayFOW: number,
+
+    status: string,
+}
+
+function periodFrom(pn: number, period: PeriodStats | undefined): Period {
+  return { 
+    periodNumber: pn,
+    periodStatus: periodStatus(period)
+  }
+}
+
+function periodStatus(period: PeriodStats | undefined): PeriodStatus {
+  switch (period?.status) {
+    case 'Finished': return PeriodStatus.Finished
+    case 'Ongoing': return PeriodStatus.Ongoing
+    default: return PeriodStatus.Unknown
+  }
 }
 
 export {
@@ -196,7 +227,7 @@ export {
   Player,
   GameStatsIf,
   PlayersOnTeam,
-  Period,
+  PeriodStats,
 }
 
 /** example

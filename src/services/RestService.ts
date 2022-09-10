@@ -1,6 +1,6 @@
 import { Config } from "../models/Config";
 import { Team } from "../models/Team";
-import { User } from "../models/User";
+import { isUserValid, User } from "../models/User";
 import { Notifier } from "../Notifier";
 import { SeasonService } from "./SeasonService";
 import { GameStatsService } from "./GameStatsService";
@@ -10,33 +10,24 @@ import { UserService } from "./UserService";
 import { GameStats } from "../models/GameStats";
 
 class RestService {
-    private config: Config
     private seasonServices: Record<number, SeasonService>
     private standingServices: StandingService
     private users: UserService
     private statsService: GameStatsService
-    private teamsService: TeamsService
     private app: any
-    private notifier: Notifier
 
     constructor(
         app: any,
-        config: Config,
         seasonServices: Record<number, SeasonService>,
         standingServices: StandingService,
         users: UserService,
         statsService: GameStatsService,
-        teamsService: TeamsService,
     ) {
         this.app = app
-        this.config = config
         this.seasonServices = seasonServices
         this.standingServices = standingServices
         this.users = users
         this.statsService = statsService
-        this.teamsService = teamsService
-
-        this.notifier = new Notifier(config)
     }
 
     startListen(port: number) {
@@ -78,14 +69,14 @@ class RestService {
          })
          
          this.app.post('/user', (req: any, res: any) => {
-            const user: User = new User(
-               req.body.id,
-               req.body.teams,
-               req.body.apn_token,
-               req.body.ios_version,
-               req.body.app_version
-            )
-            if (!user.isValid()) {
+            const user: User = {
+               id: req.body.id ? `${req.body.id}` : '',
+               teams: req.body.teams,
+               apn_token: req.body.apn_token,
+               ios_version: req.body.ios_version,
+               app_version: req.body.app_version
+            }
+            if (!isUserValid(user)) {
                 return res.status(500)
             }
             return this.users.addUser(user).then(e => res.send('success'))

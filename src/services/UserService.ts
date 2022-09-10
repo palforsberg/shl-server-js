@@ -1,5 +1,6 @@
 import { Db } from "../Db";
 import { User } from "../models/User";
+import { NotifyError } from "../Notifier";
 
 class UserService {
     db: Db<User[]>
@@ -18,6 +19,14 @@ class UserService {
             }
             return this.db.write(updated)
         })
+    }
+
+    handleNotificationError(error: Error) {
+        if (error instanceof NotifyError) {
+            console.log('[USER] NotifyError ' + JSON.stringify(error.failed))
+        } else {
+            console.log('[USER] Unknown Error ' + JSON.stringify(error))
+        }
     }
 }
 

@@ -48,6 +48,7 @@ function getGameStats(homeG = 1, awayG = 1): GameStatsIf {
                 homePIM: 9,
                 awaySOG: 11,
                 homeSOG: 66,
+                status: 'Finished',
             }
         },
         gameState: 'Ongoing',

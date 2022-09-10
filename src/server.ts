@@ -49,12 +49,10 @@ const app = express().use(express.json())
 
 const restService = new RestService(
    app,
-   config,
    seasonServices,
    standingsService,
    users,
-   statsService,
-   teamsService)
+   statsService)
 
 restService.setupRoutes()
 restService.startListen(config.port)
