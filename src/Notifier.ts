@@ -59,21 +59,22 @@ class Notifier {
         }
 
         const usersTeam = user.teams.includes(event.team || '')
-        var note = new apn.Notification()
+        var notification = new apn.Notification()
 
-        note.expiry = Math.floor(Date.now() / 1000) + 3600
-        note.sound = "ping.aiff"
-        note.alert =  {
+        notification.expiry = Math.floor(Date.now() / 1000) + 3600
+        notification.sound = "ping.aiff"
+        notification.alert =  {
             title: event.getTitle(usersTeam),
             body: event.getBody(),
         }
-        note.payload = { 
+        notification.collapseId = event.game.game_uuid
+        notification.payload = { 
             game_uuid: event.game.game_uuid, 
             team: event.team 
         }
-        note.topic = this.topic
+        notification.topic = this.topic
  
-        return this.apnConnection.send(note, user.apn_token).then((result: ApnResponse) => {
+        return this.apnConnection.send(notification, user.apn_token).then((result: ApnResponse) => {
             if (result.failed.length > 0) {
                 throw new NotifyError(user, result.failed)
             } else {

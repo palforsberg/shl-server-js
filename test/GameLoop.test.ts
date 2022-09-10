@@ -76,6 +76,7 @@ test("Notify on started game", async () => {
     // Notifications should be sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
     expect(sentNotification.mock.calls[0][0].alert.title).toContain('Matchen började')
+    expect(sentNotification.mock.calls[0][0].collapseId).toContain(getGame().game_uuid)
 })
 
 test("No notifications if no update", async () => {
