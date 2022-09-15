@@ -20,7 +20,7 @@ class GameStatsService {
         if (game == undefined){
             return Promise.resolve(undefined)
         }
-        return this.updateGame(game.game_uuid, game.game_id)
+        return this.updateGame(game.game_uuid, game.game_id.toString())
     }
 
     getFromDb(game_uuid: string): GameStats | undefined {

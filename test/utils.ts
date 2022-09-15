@@ -20,7 +20,7 @@ function getGame(home_team_result: number = 1, away_team_result: number = 0, pla
         away_team_code: 'FHC',
         away_team_result,
         game_uuid: '123',
-        game_id: '321',
+        game_id: 321,
         played,
         overtime: false,
         penalty_shots: false,

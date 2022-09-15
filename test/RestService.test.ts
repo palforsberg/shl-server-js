@@ -174,7 +174,7 @@ test('Get game stats', async () => {
     const stats = getGameStats()
     const req = new Request()
     req.setParams('game_uuid', game.game_uuid)
-    req.setParams('game_id', game.game_id)
+    req.setParams('game_id', game.game_id.toString())
     await gameStatsService.db.write({ [game.game_uuid]: stats })
     const res = new Response()
 
@@ -193,7 +193,7 @@ test('Get non existing game stats', async () => {
     const req = new Request()
     mockAxios(axios, [], undefined)
     req.setParams('game_uuid', game.game_uuid)
-    req.setParams('game_id', game.game_id)
+    req.setParams('game_id', game.game_id.toString())
     const res = new Response()
 
     // When
@@ -210,7 +210,7 @@ test('Get non existing game stats, not found at all', async () => {
     const req = new Request()
     mockAxios(axios, [], undefined)
     req.setParams('game_uuid', game.game_uuid)
-    req.setParams('game_id', game.game_id)
+    req.setParams('game_id', game.game_id.toString())
     const res = new Response()
 
     // When

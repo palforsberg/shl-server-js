@@ -219,7 +219,7 @@ function generateSeasonGame(type: string, e: number): Game {
         away_team_code: getRandomTeam(),
         away_team_result: 0,
         game_uuid: 'game_' + type + '_' + e,
-        game_id: e + '',
+        game_id: Number(e),
         played: false,
         overtime: false,
         penalty_shots: false,
