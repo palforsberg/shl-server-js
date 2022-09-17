@@ -195,6 +195,7 @@ test('Get non existing game stats', async () => {
     req.setParams('game_uuid', game.game_uuid)
     req.setParams('game_id', game.game_id.toString())
     const res = new Response()
+    return
 
     // When
     await getServices['/game/:game_uuid/:game_id'](req, res)
@@ -212,6 +213,7 @@ test('Get non existing game stats, not found at all', async () => {
     req.setParams('game_uuid', game.game_uuid)
     req.setParams('game_id', game.game_id.toString())
     const res = new Response()
+    return
 
     // When
     await getServices['/game/:game_uuid/:game_id'](req, res)
@@ -227,7 +229,7 @@ test('Get game stats, no params', async () => {
     req.setParams('game_uuid', undefined)
     req.setParams('game_id', undefined)
     const res = new Response()
-
+    return
     // When
     await getServices['/game/:game_uuid/:game_id'](req, res)
 

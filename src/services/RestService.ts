@@ -45,8 +45,14 @@ class RestService {
          })
          
          this.app.get('/game/:game_uuid/:game_id', (req: any, res: any) => {
-            const stats = this.statsService.getFromDb(req.params.game_uuid) || GameStats.empty()
-            return res.send(JSON.stringify(stats))
+            const stats = this.statsService.getFromDb(req.params.game_uuid)
+            if (stats == undefined) {
+               return this.statsService.updateGame(req.params.game_uuid, req.params.game_id)
+                  .then(s => res.send(JSON.stringify(s)))
+            } else {
+               return res.send(JSON.stringify(stats))
+            }
+            
          })
          
          this.app.get('/standings/:season', (req: any, res: any) => {

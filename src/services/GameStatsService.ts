@@ -31,7 +31,7 @@ class GameStatsService {
         return new GameStats(cached)
     }
 
-    private updateGame(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
+    updateGame(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
         return this.client.getGameStats(game_uuid, game_id).then(stats => {
             if (!stats || stats.recaps == undefined) {
                 return Promise.resolve(undefined)
