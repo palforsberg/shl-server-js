@@ -33,6 +33,25 @@ test('finds away team scored', () => {
     expect(result?.type).toBe('scored')
 });
 
+test('game going from Intermission to Ongoing should not create event', () => {
+    const oldGames = getGame()
+    oldGames.gameState = 'Intermission'
+    const newGames = getGame()
+    newGames.gameState = 'Ongoing'
+    const result = GameComparer.compare([oldGames, newGames])
+    expect(result).toBe(undefined)
+})
+
+test('game going from Ongoing to OverTime should not create event', () => {
+    const oldGames = getGame()
+    oldGames.gameState = 'Ongoing'
+    const newGames = getGame()
+    newGames.gameState = 'OverTime'
+    const result = GameComparer.compare([oldGames, newGames])
+    expect(result).toBe(undefined)
+})
+
+
 test('finds nothing', () => {
     const oldGames = getGame()
     const newGames = getGame()

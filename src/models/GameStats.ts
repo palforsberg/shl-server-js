@@ -110,8 +110,16 @@ class GameStats extends GameStatsIf {
       return this.gameState == 'GameEnded'
     }
 
+    isPaused(): boolean {
+      return this.gameState == 'Intermission'
+    }
+
+    isOvertime(): boolean {
+      return this.gameState == 'OverTime'
+    }
+  
     isLive(): boolean {
-      return this.gameState == 'Ongoing'
+      return this.gameState == 'Ongoing' || this.isPaused() || this.isOvertime()
     }
 
     getHomeTeam(): Player[] {
