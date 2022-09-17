@@ -107,7 +107,7 @@ class GameStats extends GameStatsIf {
     }
 
     isPlayed(): boolean {
-      return this.gameState == 'GameEnded'
+      return this.gameState == 'GameEnded' && this.recaps?.gameRecap?.homeG != this.recaps?.gameRecap?.awayG
     }
 
     isPaused(): boolean {

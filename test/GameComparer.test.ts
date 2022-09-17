@@ -13,6 +13,7 @@ test('finds ended game', () => {
     oldGames.gameState = 'Ongoing'
     const newGames = getGame()
     newGames.gameState = 'GameEnded'
+    newGames.recaps!.gameRecap!.awayG = 1
     const result = GameComparer.compare([oldGames, newGames])
     expect(result?.type).toBe('ended')
 });
@@ -51,6 +52,20 @@ test('game going from Ongoing to OverTime should not create event', () => {
     expect(result).toBe(undefined)
 })
 
+
+test('game going from Ongoing to GameEnded should not create event if score is the same', () => {
+    const oldGames = getGame()
+    oldGames.gameState = 'Ongoing'
+    const newGames = getGame()
+    newGames.gameState = 'GameEnded'
+    var result = GameComparer.compare([oldGames, newGames])
+    expect(result).toBe(undefined)
+
+    newGames.recaps!.gameRecap!.awayG = 1
+    newGames.gameState = 'GameEnded'
+    result = GameComparer.compare([oldGames, newGames])
+    expect(result?.type).toBe('ended')
+})
 
 test('finds nothing', () => {
     const oldGames = getGame()

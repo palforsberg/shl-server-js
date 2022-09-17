@@ -182,6 +182,7 @@ test("Notification game ended", async () => {
     // When - Loop runs with game now played = true
     const statsEnded = getGameStats()
     statsEnded.gameState = 'GameEnded'
+    statsEnded.recaps!.gameRecap!.homeG = 2
     mockAxios(axios, [getGame(2, 0, true)], statsEnded)
     await looper.gameJob()
 
