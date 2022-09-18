@@ -37,17 +37,6 @@ class GameEvent {
         return 'Pucken'
     }
 
-    getSubtitle(): string {
-        const ht = this.game.getHomeTeamId()
-        const hg = this.game.getHomeResult()
-        const at = this.game.getAwayTeamId()
-        const ag = this.game.getAwayResult()
-        /**
-         * FBK 0 - 5 LHF
-         */
-        return `${ht} ${hg} - ${ag} ${at}`
-    }
-
     getBody(): string | undefined {
         if (this.type == 'began') {
             return TeamsService.getName(this.game.getHomeTeamId())
@@ -55,7 +44,7 @@ class GameEvent {
                 TeamsService.getName(this.game.getAwayTeamId())
         }
         if (this.type == 'ended') {
-            return this.getSubtitle()
+            return this.getScoreString()
         }
         let t = '';
         if (this.scorer) {
@@ -65,11 +54,22 @@ class GameEvent {
         if (t) {
             t = '\n' + t
         }
-        return this.getSubtitle() + t
+        return this.getScoreString() + t
     }
 
-    toString(): string {
-        return this.getTitle(true) + ' ' + this.getSubtitle() 
+    toString(excited: boolean): string {
+        return this.getTitle(excited) + ' ' + this.getBody() 
+    }
+
+    private getScoreString(): string {
+        const ht = this.game.getHomeTeamId()
+        const hg = this.game.getHomeResult()
+        const at = this.game.getAwayTeamId()
+        const ag = this.game.getAwayResult()
+        /**
+         * FBK 0 - 5 LHF
+         */
+        return `${ht} ${hg} - ${ag} ${at}`
     }
 
     static began(game: GameStats): GameEvent {

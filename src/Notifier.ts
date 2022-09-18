@@ -41,7 +41,7 @@ class Notifier {
     notify(event: GameEvent | undefined, users: User[]): Promise<User[]> {
         if (!event) return Promise.resolve(users)
         if (!this.send) {
-            console.log('[NOTIFIER] Muted', event.toString())
+            console.log('[NOTIFIER] Muted', event.toString(false))
             return Promise.resolve(users.map(e => (e)))
         }
         return Promise.all(users
@@ -58,13 +58,13 @@ class Notifier {
             return Promise.resolve(user)
         }
 
-        const usersTeam = user.teams.includes(event.team || '')
+        const isUsersTeam = user.teams.includes(event.team || '')
         var notification = new apn.Notification()
 
         notification.expiry = Math.floor(Date.now() / 1000) + 3600
         notification.sound = "ping.aiff"
         notification.alert =  {
-            title: event.getTitle(usersTeam),
+            title: event.getTitle(isUsersTeam),
             body: event.getBody(),
         }
         notification.collapseId = event.game.game_uuid
@@ -78,7 +78,7 @@ class Notifier {
             if (result.failed.length > 0) {
                 throw new NotifyError(user, result.failed)
             } else {
-                console.log(`[NOTIFIER] Sent ${event.toString()} to ${user.id}`)
+                console.log(`[NOTIFIER] Sent ${event.toString(isUsersTeam)} to ${user.id}`)
                 return user
             }
         })   

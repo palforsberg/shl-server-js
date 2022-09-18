@@ -114,7 +114,7 @@ class GameStats extends GameStatsIf {
       return this.gameState == 'Intermission'
     }
 
-    isOvertime(): boolean {
+    isOvertime(): boolean {
       return this.gameState == 'OverTime'
     }
   
@@ -151,7 +151,6 @@ class GameStats extends GameStatsIf {
         return undefined
       }
       const recap = [this.recaps[4],this.recaps[3],this.recaps[2],this.recaps[1],this.recaps[0]]
-        // TODO: check status for period
         .find(e => e != undefined)
       return recap || this.recaps[0]
     }
@@ -224,8 +223,8 @@ function periodFrom(pn: number, period: PeriodStats | undefined): Period {
 
 function periodStatus(period: PeriodStats | undefined): PeriodStatus {
   switch (period?.status) {
+    case 'Playing': return PeriodStatus.Ongoing
     case 'Finished': return PeriodStatus.Finished
-    case 'Ongoing': return PeriodStatus.Ongoing
     default: return PeriodStatus.Unknown
   }
 }

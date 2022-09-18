@@ -185,7 +185,7 @@ function getPeriod(game: Game, nr: number): PeriodStats {
         awaySOG: 0,
         awayTeamId: game.away_team_code,
 
-        status: 'Ongoing',
+        status: 'Playing',
     }
 }
 function getLiveGame(e: number): Game {
