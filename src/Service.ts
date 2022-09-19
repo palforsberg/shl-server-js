@@ -25,8 +25,17 @@ class Service<T> {
       return this.db.read().then(e => e.data)
    }
 
-   write(data: T): Promise<T> {
-      return this.db.write(this.fromData(data)).then(e => e.data)
+   write(data: T, updateTimestamp = true): Promise<T> {
+      if (updateTimestamp) {
+         return this.db.write(this.fromData(data)).then(e => e.data)
+      } else {
+         return this.db.read()
+            .then(e => {
+               const timestamp = e.timestamp || this.now().toString()
+               return this.db.write({ timestamp, data })
+            })
+            .then(e => e.data)
+      }
    }
 
    /**
@@ -57,12 +66,20 @@ class Service<T> {
       if (this.expiryDelta < 0) {
          return false
       }
-      const diff = new Date().getTime() - new Date(timestamp).getTime()
+      const diff = this.now().getTime() - new Date(timestamp).getTime()
       return diff > this.expiryDelta
    }
 
+   getDb(): Db<WrappedObject<T>> {
+      return this.db
+   }
+
+   now(): Date {
+      return new Date()
+   }
+
    private fromData(data: T): WrappedObject<T> {
-      return { timestamp: new Date().toString(), data }
+      return { timestamp: this.now().toString(), data }
    }
 
 }

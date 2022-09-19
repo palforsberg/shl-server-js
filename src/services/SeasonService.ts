@@ -35,7 +35,7 @@ class SeasonService extends Service<Game[]> {
                 return Promise.resolve([])
             }
             allGames[gameIndex] = SeasonService.populate(allGames[gameIndex], stats)
-            return this.write(allGames)
+            return this.write(allGames, false)
         })
     }
 
