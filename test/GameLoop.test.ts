@@ -2,6 +2,7 @@
 const fs = require('fs')
 const axios = require('axios')
 
+import { GameStatus } from "../src/models/Game";
 import { User } from "../src/models/User";
 import { Service } from "../src/Service";
 import { GameStatsService } from "../src/services/GameStatsService";
@@ -179,11 +180,11 @@ test("Notification game ended", async () => {
     expect(sentNotification).toHaveBeenCalledTimes(1)
     sentNotification.mockClear()
 
-    // When - Loop runs with game now played = true
+    // When - Loop runs with game now gameState = 'GameEnded'
     const statsEnded = getGameStats()
     statsEnded.gameState = 'GameEnded'
     statsEnded.recaps!.gameRecap!.homeG = 2
-    mockAxios(axios, [getGame(2, 0, true)], statsEnded)
+    mockAxios(axios, [getGame(2, 0)], statsEnded)
     await looper.gameJob()
 
     // Then - notifications should've been sent
@@ -336,4 +337,34 @@ test('Test with gameStats.recaps being an array', async () => {
     var firstStat = Object.values(stats)[0]
     expect(firstStat.recaps!.gameRecap).toBe(undefined)
     expect(firstStat.playersByTeam).toBe(undefined)
+})
+
+test('Test season game without gamestats', async () => {
+    // Given - Game started in past
+    let inputGame = getGame(2, 0)
+    inputGame.start_date_time = new Date(Date.now() - 20000)
+    mockAxios(axios, [inputGame], undefined)
+
+    // When
+    await looper.gameJob()
+
+    // Then
+    let games = await seasonService.read()
+    expect(games.length).toBe(1)
+    let game = games[0]
+    expect(game.status).toBe(GameStatus.Finished)
+
+    // Given - Game started in future
+    inputGame = getGame(2, 0)
+    inputGame.start_date_time = new Date(Date.now() + 20000)
+    mockAxios(axios, [inputGame], undefined)
+
+    // When
+    await looper.gameJob()
+
+    // Then
+    games = await seasonService.read()
+    expect(games.length).toBe(1)
+    game = games[0]
+    expect(game.status).toBe(GameStatus.Coming)
 })

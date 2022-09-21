@@ -86,7 +86,7 @@ test('Get season', async () => {
     expect(res.body).toEqual(JSON.stringify(game))
 })
 
-test('Get season with non-numberic param', async () => {
+test('Get season with non-numeric param', async () => {
        // Given
        const req = new Request()
        req.setParams('season', 'hejsna')

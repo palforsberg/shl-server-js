@@ -1,4 +1,4 @@
-import { Game } from "../models/Game";
+import { Game, GameStatus } from "../models/Game";
 import { GameStats } from "../models/GameStats";
 import { Service } from "../Service";
 import { SHL } from "../ShlClient";
@@ -48,14 +48,28 @@ class SeasonService extends Service<Game[]> {
     }
 
     static populate(g: Game, stats: GameStats | undefined): Game {
-        if (!stats) return g
+        if (!stats) {
+            const status = SeasonService.getGameStatusForNonStats(g)
+            return { ...g, status }
+        }
         return {
             ...g,
             away_team_result: stats.getAwayResult(),
-            home_team_result: stats.getHomeResult(),
+            home_team_result: stats.getHomeResult(), 
             played: stats.isPlayed(),
             status: stats.getGameStatus(),
         }
+    }
+
+    /** 
+     * Approximate GameStatus given only information in Game
+     */
+    static getGameStatusForNonStats(g: Game): GameStatus {
+        if (new Date(g.start_date_time) < new Date()) {
+            // game have started
+            return GameStatus.Finished
+        }
+        return GameStatus.Coming
     }
 }
 
