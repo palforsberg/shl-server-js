@@ -2,7 +2,7 @@
  * Stats of a single game.
  */
 
-import { AllPeriods, Period, PeriodStatus } from "./Game"
+import { GameStatus } from "./Game"
 
 interface Player {
     player: number
@@ -50,9 +50,21 @@ class GameStatsIf {
         4?: PeriodStats,
         gameRecap?: PeriodStats,
     };
+    /**
+     * Values:
+     * Ongoing
+     * Intermission
+     * OverTime
+     * GameEnded
+     */
     gameState: string;
     playersByTeam?: Record<string, PlayersOnTeam>;
-  
+
+    /**
+     * Generated
+     */
+    status?: GameStatus;
+
     constructor() {
       this.gameState = ''
       this.game_uuid = ''
@@ -66,7 +78,7 @@ class GameStats extends GameStatsIf {
         this.gameState = stats.gameState
         this.playersByTeam = stats.playersByTeam
         this.game_uuid = stats.game_uuid
-    
+
         if (this.recaps && Array.isArray(this.recaps.gameRecap)) {
             // gameRecap is empty array if empty, convert to undefined instead
             this.recaps.gameRecap = undefined
@@ -75,6 +87,7 @@ class GameStats extends GameStatsIf {
             // playersByTeam is empty array if empty, convert to undefined instead
             this.playersByTeam = undefined
         }
+        this.status = this.getGameStatus()
 
         this.getHomeTeamId = this.getHomeTeamId.bind(this)
         this.getAwayTeamId = this.getAwayTeamId.bind(this)
@@ -82,6 +95,10 @@ class GameStats extends GameStatsIf {
         this.getAwayResult = this.getAwayResult.bind(this)
         this.isPlayed = this.isPlayed.bind(this)
         this.isLive = this.isLive.bind(this)
+        this.isOvertime = this.isOvertime.bind(this)
+        this.isPaused = this.isPaused.bind(this)
+        this.isComing = this.isComing.bind(this)
+        this.getGameStatus = this.getGameStatus.bind(this)
         this.getHomeTeam = this.getHomeTeam.bind(this)
         this.getAwayTeam = this.getAwayTeam.bind(this)
         this.getTeam = this.getTeam.bind(this)
@@ -117,9 +134,13 @@ class GameStats extends GameStatsIf {
     isOvertime(): boolean {
       return this.gameState == 'OverTime'
     }
+
+    isComing(): boolean {
+      return this.gameState == ''
+    }
   
     isLive(): boolean {
-      return this.gameState == 'Ongoing' || this.isPaused() || this.isOvertime()
+      return !this.isComing() && !this.isPlayed()
     }
 
     getHomeTeam(): Player[] {
@@ -133,8 +154,9 @@ class GameStats extends GameStatsIf {
     getCurrentPeriodFormatted(): string {
       const p = this.getCurrentPeriodNumber()
       switch (p) {
+        case 99:
+          return 'straffar'
         case 4:
-        case 5:
           return 'övertid'
         case 3:
           return '3:e perioden'
@@ -152,7 +174,7 @@ class GameStats extends GameStatsIf {
       }
       const recap = [this.recaps[4],this.recaps[3],this.recaps[2],this.recaps[1],this.recaps[0]]
         .find(e => e != undefined)
-      return recap || this.recaps[0]
+      return recap
     }
 
     getCurrentPeriodNumber(): number {
@@ -160,13 +182,32 @@ class GameStats extends GameStatsIf {
       return recap?.periodNumber || 1
     }
 
-    getAllPeriods(): AllPeriods {
-      return {
-        0: periodFrom(1, this.recaps?.[0]),
-        1: periodFrom(2, this.recaps?.[1]),
-        2: periodFrom(3, this.recaps?.[2]),
-        3: periodFrom(4, this.recaps?.[3]),
-        4: periodFrom(5, this.recaps?.[4]),
+    getGameStatus(): GameStatus {
+      if (this.isPlayed()) {
+        return GameStatus.Finished
+      }
+      if (this.isPaused()) {
+        return GameStatus.Intermission
+      }
+      if (this.isOvertime()) {
+        return GameStatus.Overtime
+      }
+      if (!this.isLive()) {
+        return GameStatus.Coming
+      }
+      var period = this.getCurrentPeriodNumber()
+      switch (period) {
+        case 99:
+          return GameStatus.Shootout
+        case 4:
+          return GameStatus.Overtime
+        case 3:
+          return GameStatus.Period3
+        case 2:
+          return GameStatus.Period2
+        case 1:
+        default:
+          return GameStatus.Period1
       }
     }
 
@@ -212,21 +253,6 @@ interface PeriodStats {
     awayFOW: number,
 
     status: string,
-}
-
-function periodFrom(pn: number, period: PeriodStats | undefined): Period {
-  return { 
-    periodNumber: pn,
-    periodStatus: periodStatus(period)
-  }
-}
-
-function periodStatus(period: PeriodStats | undefined): PeriodStatus {
-  switch (period?.status) {
-    case 'Playing': return PeriodStatus.Ongoing
-    case 'Finished': return PeriodStatus.Finished
-    default: return PeriodStatus.Unknown
-  }
 }
 
 export {

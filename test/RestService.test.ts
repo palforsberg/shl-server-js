@@ -15,6 +15,7 @@ import { UserService } from "../src/services/UserService"
 import { SHL } from "../src/ShlClient"
 import { getConfig, getGame, getGameStats, getStanding, mockApn, mockAxios } from "./utils"
 import { GameStats } from '../src/models/GameStats';
+import { GameStatus } from '../src/models/Game';
 
 jest.mock("fs")
 jest.mock("axios")
@@ -172,6 +173,7 @@ test('Get game stats', async () => {
     // Given
     const game = getGame()
     const stats = getGameStats()
+    stats.status = GameStatus.Period1
     const req = new Request()
     req.setParams('game_uuid', game.game_uuid)
     req.setParams('game_id', game.game_id.toString())

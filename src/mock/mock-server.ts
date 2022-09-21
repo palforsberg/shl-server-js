@@ -153,7 +153,7 @@ function getGameStats(game: Game): GameStats {
             },
             recaps: {
                 0: getPeriod(game, 1),
-                gameRecap: getPeriod(game, 1),
+                gameRecap: getPeriod(game, 0),
             },
             gameState: 'GameEnded'
         })
@@ -226,7 +226,7 @@ function generateSeasonGame(type: string, e: number): Game {
         start_date_time: new Date(),
         season: '2022',
         game_type: 'Season',
-        periods: undefined,
+        status: undefined,
     }
 }
 

@@ -39,31 +39,21 @@ interface Game {
     /**
      * From GameStats
      */
-    periods?: AllPeriods,
+    status?: GameStatus,    
 }
 
-interface AllPeriods {
-    0: Period,
-    1: Period,
-    2: Period,
-    3: Period,
-    4: Period,
-}
-
-interface Period {
-    periodNumber: number,
-    periodStatus: PeriodStatus,
-}
-
-enum PeriodStatus {
-    Ongoing,
-    Finished,
-    Unknown
+enum GameStatus {
+    Coming = 'Coming',
+    Period1 = 'Period1',
+    Period2 = 'Period2',
+    Period3 = 'Period3',
+    Overtime = 'Overtime',
+    Shootout = 'Shootout',
+    Finished = 'Finished',
+    Intermission = 'Intermission',
 }
 
 export {
-    PeriodStatus,
-    Period,
-    AllPeriods,
+    GameStatus,
     Game,
 }

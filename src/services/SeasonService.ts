@@ -54,7 +54,7 @@ class SeasonService extends Service<Game[]> {
             away_team_result: stats.getAwayResult(),
             home_team_result: stats.getHomeResult(),
             played: stats.isPlayed(),
-            periods: stats.getAllPeriods(),
+            status: stats.getGameStatus(),
         }
     }
 }
