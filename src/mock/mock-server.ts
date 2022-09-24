@@ -183,6 +183,8 @@ function getPeriod(game: Game, nr: number): PeriodStats {
         awayHits: 0,
         awayPIM: 0,
         awaySOG: 0,
+        homePPG: 0,
+        awayPPG: 0,
         awayTeamId: game.away_team_code,
 
         status: 'Playing',

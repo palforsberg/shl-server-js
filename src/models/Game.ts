@@ -1,23 +1,28 @@
 /**
- * example
+ * Example. Note that live attributes are too slow to rely on.
  *     {
+ * Used:
       "away_team_code": "DIF",
-      "away_team_result": 0,
-      "game_center_active": false,
-      "game_id": 14367,
-      "game_type": "Regular season game",
-      "game_uuid": "qZl-8uIfjbeZ1",
-      "highlights_coverage_enabled": false,
       "home_team_code": "IKO",
+      "game_id": 14367,
+      "game_uuid": "qZl-8uIfjbeZ1",
+      "game_type": "Regular season game",
+      "start_date_time": "2022-03-15T19:00:00+0100",
+
+* Overwritten from GameStats but still used
+      "away_team_result": 0,
       "home_team_result": 0,
+      "played": false,
+      
+* Not used at all
       "live_coverage_enabled": false,
       "overtime": false,
       "penalty_shots": false,
-      "played": false,
       "season": "2021",
       "series": "SHL",
-      "start_date_time": "2022-03-15T19:00:00+0100",
       "tv_channels": [],
+      "highlights_coverage_enabled": false,
+      "game_center_active": false,
       "venue": "Be-Ge Hockey Center"
     },
  */

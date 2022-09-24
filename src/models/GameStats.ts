@@ -56,6 +56,7 @@ class GameStatsIf {
      * Intermission
      * OverTime
      * GameEnded
+     * ShootOut
      */
     gameState: string;
     playersByTeam?: Record<string, PlayersOnTeam>;
@@ -93,15 +94,18 @@ class GameStats extends GameStatsIf {
         this.getAwayTeamId = this.getAwayTeamId.bind(this)
         this.getHomeResult = this.getHomeResult.bind(this)
         this.getAwayResult = this.getAwayResult.bind(this)
+        this.getHomePPG = this.getHomePPG.bind(this)
+        this.getAwayPPG = this.getAwayPPG.bind(this)
         this.isPlayed = this.isPlayed.bind(this)
         this.isLive = this.isLive.bind(this)
         this.isOvertime = this.isOvertime.bind(this)
         this.isPaused = this.isPaused.bind(this)
         this.isComing = this.isComing.bind(this)
+        this.isShootout = this.isShootout.bind(this)
         this.getGameStatus = this.getGameStatus.bind(this)
-        this.getHomeTeam = this.getHomeTeam.bind(this)
-        this.getAwayTeam = this.getAwayTeam.bind(this)
-        this.getTeam = this.getTeam.bind(this)
+        this.getHomePlayers = this.getHomePlayers.bind(this)
+        this.getAwayPlayers = this.getAwayPlayers.bind(this)
+        this.getPlayersForTeam = this.getPlayersForTeam.bind(this)
         this.getCurrentPeriodFormatted = this.getCurrentPeriodFormatted.bind(this)
         this.getCurrentPeriod = this.getCurrentPeriod.bind(this)
         this.getCurrentPeriodNumber = this.getCurrentPeriodNumber.bind(this)
@@ -119,8 +123,16 @@ class GameStats extends GameStatsIf {
       return this.recaps?.gameRecap?.homeG || 0
     }
 
+    getHomePPG(): number {
+      return this.recaps?.gameRecap?.homePPG || 0
+    }
+
     getAwayResult(): number {
       return this.recaps?.gameRecap?.awayG || 0
+    }
+
+    getAwayPPG(): number {
+      return this.recaps?.gameRecap?.awayPPG || 0
     }
 
     isPlayed(): boolean {
@@ -139,16 +151,20 @@ class GameStats extends GameStatsIf {
       return this.gameState == ''
     }
   
+    isShootout(): boolean {
+      return this.gameState == 'ShootOut'
+    }
+  
     isLive(): boolean {
       return !this.isComing() && !this.isPlayed()
     }
 
-    getHomeTeam(): Player[] {
-      return this.getTeam(this.recaps?.gameRecap?.homeTeamId)
+    getHomePlayers(): Player[] {
+      return this.getPlayersForTeam(this.getHomeTeamId())
     }
 
-    getAwayTeam(): Player[] {
-      return this.getTeam(this.recaps?.gameRecap?.awayTeamId)
+    getAwayPlayers(): Player[] {
+      return this.getPlayersForTeam(this.getAwayTeamId())
     }
 
     getCurrentPeriodFormatted(): string {
@@ -179,7 +195,7 @@ class GameStats extends GameStatsIf {
 
     getCurrentPeriodNumber(): number {
       const recap = this.getCurrentPeriod()
-      return recap?.periodNumber || 1
+      return recap?.periodNumber || 0
     }
 
     getGameStatus(): GameStatus {
@@ -211,7 +227,7 @@ class GameStats extends GameStatsIf {
       }
     }
 
-    private getTeam(team?: string): Player[] {
+    private getPlayersForTeam(team?: string): Player[] {
       if (!team) {
         return []
       }
@@ -236,6 +252,9 @@ interface PeriodStats {
     homeHits: number,
     awaySOG: number,
     homeSOG: number,
+
+    awayPPG: number,
+    homePPG: number,
 
     awayTeamId: string,
     homeTeamId: string,

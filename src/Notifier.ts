@@ -40,9 +40,12 @@ class Notifier {
      */
     notify(event: GameEvent | undefined, users: User[]): Promise<User[]> {
         if (!event) return Promise.resolve(users)
+        if (!event.shouldNotify()) {
+            return Promise.resolve(users)   
+        }
         if (!this.send) {
             console.log('[NOTIFIER] Muted', event.toString(false))
-            return Promise.resolve(users.map(e => (e)))
+            return Promise.resolve(users)
         }
         return Promise.all(users
             .filter(u => this.userHasSubscribed(u, event.game.getHomeTeamId(), event.game.getAwayTeamId()))

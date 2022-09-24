@@ -3,8 +3,11 @@ const fs = require('fs')
 const axios = require('axios')
 
 import { GameStatus } from "../src/models/Game";
+import { GameEvent } from "../src/models/GameEvent";
+import { GameStats } from "../src/models/GameStats";
 import { User } from "../src/models/User";
 import { Service } from "../src/Service";
+import { EventService } from "../src/services/EventService";
 import { GameStatsService } from "../src/services/GameStatsService";
 import { getConfig, getGame, getGameStats, getStanding, mockApn, mockAxios, mockAxiosFn } from "./utils";
 
@@ -35,12 +38,14 @@ const userService = new UserService()
 const gameStatsService = new GameStatsService(shl)
 const seasonService = new SeasonService(season, 0, shl, gameStatsService)
 const standingsService = new StandingService(season, 4, shl)
+const eventService = new EventService()
 const looper = new GameLoop(
     config,
     seasonService,
     userService,
     gameStatsService,
-    standingsService)
+    standingsService,
+    eventService)
 
 jest.setTimeout(20_000_000)
 
@@ -54,12 +59,13 @@ beforeEach(() => {
     })
     // @ts-ignore
     gameStatsService.db.write({})
+    eventService.db.write({})
 })
 
 test("Notify on started game", async () => {
     // Given - SHL returns a live game and some stats
     await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
-    mockAxios(axios, [getGame()], getGameStats())
+    mockAxios(axios, [getGame()], getGameStats(0, 0))
 
     // When - Loop has run
     await looper.gameJob()
@@ -98,7 +104,7 @@ test("No notifications if no update", async () => {
 test("Notification on score", async () => {
     // Given - SHL returns a live game and some stats
     await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
-    mockAxios(axios, [getGame(2, 0)], getGameStats(2, 0))
+    mockAxios(axios, [getGame(0, 0)], getGameStats(0, 0))
 
     // When - Loop has run with game
     await looper.gameJob()
@@ -106,15 +112,15 @@ test("Notification on score", async () => {
     sentNotification.mockClear()
 
     // When - Loop runs with score change
-    const updatedGameStats = getGameStats(3, 0)
+    const updatedGameStats = getGameStats(1, 0)
     updatedGameStats.playersByTeam!['LHF'].players[0].g = 1
-    mockAxios(axios, [getGame(3, 0)], updatedGameStats)
+    mockAxios(axios, [getGame(1, 0)], updatedGameStats)
     await looper.gameJob()
 
     // Then - notifications should've been sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
     expect(sentNotification.mock.calls[0][0].alert.title).toEqual('MÅÅÅL för Luleå!')
-    expect(sentNotification.mock.calls[0][0].alert.body).toEqual('LHF 3 - 0 FBK\nMats Matsson i 1:a perioden')
+    expect(sentNotification.mock.calls[0][0].alert.body).toEqual('LHF 1 - 0 FBK\nMats Matsson i 1:a perioden')
 })
 
 test("Notification on score, only from game stats", async () => {
@@ -173,18 +179,17 @@ test("Notification on score, only from game stats", async () => {
 test("Notification game ended", async () => {
     // Given - SHL returns a live game and some stats
     await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
-    mockAxios(axios, [getGame(2, 0, false)], getGameStats())
+    mockAxios(axios, [getGame(1, 0, false)], getGameStats(1, 0))
 
     // When - Loop has run with game
     await looper.gameJob()
-    expect(sentNotification).toHaveBeenCalledTimes(1)
+    expect(sentNotification).toHaveBeenCalledTimes(2)
     sentNotification.mockClear()
 
     // When - Loop runs with game now gameState = 'GameEnded'
-    const statsEnded = getGameStats()
+    const statsEnded = getGameStats(1, 0)
     statsEnded.gameState = 'GameEnded'
-    statsEnded.recaps!.gameRecap!.homeG = 2
-    mockAxios(axios, [getGame(2, 0)], statsEnded)
+    mockAxios(axios, [getGame(1, 0)], statsEnded)
     await looper.gameJob()
 
     // Then - notifications should've been sent
@@ -367,4 +372,32 @@ test('Test season game without gamestats', async () => {
     expect(games.length).toBe(1)
     game = games[0]
     expect(game.status).toBe(GameStatus.Coming)
+})
+
+test('Test event stored given notifications', async () => {
+        // Given - SHL returns a live game and some stats
+        await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
+        const preStats = getGameStats(2, 0)
+        mockAxios(axios, [getGame(2, 0)], preStats)
+    
+        // When - Loop has run with game
+        await looper.gameJob()
+        eventService.db.write({})
+    
+        // When - Loop runs with score change
+        const postStats = getGameStats(3, 0)
+        postStats.playersByTeam!['LHF'].players[0].g = 1
+        mockAxios(axios, [getGame(3, 0)], postStats)
+        await looper.gameJob()
+    
+        // Then - GameEvent should've been stored
+        const events = await eventService.getEvents(getGame().game_uuid)
+        expect(events).toBeDefined()
+        expect(events.length).toBe(1)
+        const event = events[0]
+        const expectedEvent = GameEvent.goal(new GameStats(postStats), 'LHF', event.player, false)
+        expect(JSON.stringify(event.pre)).toEqual(JSON.stringify(preStats.recaps?.gameRecap))
+        expect(JSON.stringify(event.game)).toEqual(JSON.stringify(expectedEvent.game))
+        expect(JSON.stringify(event.team)).toEqual(JSON.stringify(expectedEvent.team))
+        expect(JSON.stringify(event.player)).toEqual(JSON.stringify(expectedEvent.player))
 })

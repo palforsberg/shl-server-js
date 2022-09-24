@@ -30,7 +30,7 @@ function getGame(home_team_result: number = 1, away_team_result: number = 0, pla
     }
 }
 
-function getGameStats(homeG = 1, awayG = 1): GameStatsIf {
+function getGameStats(homeG = 0, awayG = 0): GameStatsIf {
     return {
         game_uuid: 'game_uuid',
         recaps: {
@@ -48,6 +48,8 @@ function getGameStats(homeG = 1, awayG = 1): GameStatsIf {
                 homePIM: 9,
                 awaySOG: 11,
                 homeSOG: 66,
+                awayPPG: 0,
+                homePPG: 0,
                 status: 'Finished',
             }
         },

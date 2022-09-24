@@ -8,12 +8,14 @@ import { StandingService } from "./StandingService";
 import { TeamsService } from "./TeamsService";
 import { UserService } from "./UserService";
 import { GameStats } from "../models/GameStats";
+import { EventService } from "./EventService";
 
 class RestService {
     private seasonServices: Record<number, SeasonService>
     private standingServices: StandingService
     private users: UserService
     private statsService: GameStatsService
+    private eventService: EventService
     private app: any
 
     constructor(
@@ -22,12 +24,14 @@ class RestService {
         standingServices: StandingService,
         users: UserService,
         statsService: GameStatsService,
+        eventService: EventService,
     ) {
         this.app = app
         this.seasonServices = seasonServices
         this.standingServices = standingServices
         this.users = users
         this.statsService = statsService
+        this.eventService = eventService
     }
 
     startListen(port: number) {
@@ -84,6 +88,11 @@ class RestService {
          
          this.app.get('/teams', (req: any, res: any) => {
             return res.send(JSON.stringify(TeamsService.getTeams()))
+         })
+
+         this.app.get('/events/:game_uuid', (req: any, res: any) => {
+            return this.eventService.getEvents(req.params.game_uuid)
+               .then(events => res.send(JSON.stringify(events)))
          })
     }
 }

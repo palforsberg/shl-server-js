@@ -2,25 +2,36 @@
 import { GameEvent } from './models/GameEvent'
 import { GameStats, Player } from './models/GameStats'
 
-function compare(games: [GameStats | undefined, GameStats | undefined]): GameEvent | undefined {
+function compare(games: [GameStats | undefined, GameStats | undefined]): GameEvent[] {
     const old = games[0] || GameStats.empty()
     const updated = games[1] || GameStats.empty()
     
+    const result: GameEvent[] = []
+
     if (!old.isLive() && updated.isLive()) {
-        return GameEvent.began(updated!)
-    } else if (!old.isPlayed() && updated.isPlayed()) {
-        return GameEvent.ended(updated!)
+        result.push(GameEvent.gameStart(updated))
     }
 
     if (old.getHomeResult() < updated.getHomeResult()) {
-        const scorer = getScorer(old.getHomeTeam(), updated.getHomeTeam())
-        return GameEvent.scored(updated!, updated.getHomeTeamId(), scorer)
+        const scorer = getScorer(old.getHomePlayers(), updated.getHomePlayers())
+        const isPowerPlay = old.getHomePPG() < updated.getHomePPG()
+        result.push(GameEvent.goal(updated, updated.getHomeTeamId(), scorer, isPowerPlay))
     }
     if (old.getAwayResult() < updated.getAwayResult()) {
-        const scorer = getScorer(old.getAwayTeam(), updated.getAwayTeam())
-        return GameEvent.scored(updated!, updated.getAwayTeamId(), scorer)
+        const scorer = getScorer(old.getAwayPlayers(), updated.getAwayPlayers())
+        const isPowerPlay = old.getAwayPPG() < updated.getAwayPPG()
+        result.push(GameEvent.goal(updated, updated.getAwayTeamId(), scorer, isPowerPlay))
     }
-    return undefined
+
+    if (old.getCurrentPeriodNumber() != updated.getCurrentPeriodNumber()) {
+        result.push(GameEvent.periodStart(updated, updated.getCurrentPeriodNumber()))
+    }
+
+    if (!old.isPlayed() && updated.isPlayed()) {
+        result.push(GameEvent.gameEnd(updated))
+    }
+
+    return result
 }
 
 function getScorer(old: Player[], updated: Player[]): Player | undefined {

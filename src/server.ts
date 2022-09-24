@@ -11,6 +11,7 @@ import { SeasonService } from './services/SeasonService'
 import { StandingService } from './services/StandingService'
 import { RestService } from './services/RestService'
 import express from 'express'
+import { EventService } from './services/EventService'
 
 
 const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
@@ -38,12 +39,15 @@ const seasonServices = {
    2019: new SeasonService(2019, -1, shl, statsService),
 }
 
+const eventService = new EventService()
+
 const gameLoop = new GameLoop(
    config,
    seasonServices[currentSeason],
    users,
    statsService,
-   standingsService)
+   standingsService,
+   eventService)
 
 const app = express().use(express.json())
 
@@ -52,7 +56,8 @@ const restService = new RestService(
    seasonServices,
    standingsService,
    users,
-   statsService)
+   statsService,
+   eventService)
 
 restService.setupRoutes()
 restService.startListen(config.port)

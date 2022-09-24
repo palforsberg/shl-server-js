@@ -7,6 +7,7 @@ import { StandingService } from "./services/StandingService";
 import { UserService } from "./services/UserService";
 import { GameStatsService } from "./services/GameStatsService";
 import { GameStats } from "./models/GameStats";
+import { EventService } from "./services/EventService";
 
 class GameLoop {
     private seasonService: SeasonService
@@ -14,13 +15,15 @@ class GameLoop {
     private userService: UserService
     private gameStatsService: GameStatsService
     private notifier: Notifier
+    private eventService: EventService
 
     constructor(
         config: Config,
         seasonService: SeasonService,
         userService: UserService,
         gameStatsService: GameStatsService,
-        currentStanding: StandingService) {
+        currentStanding: StandingService,
+        eventService: EventService) {
 
          this.loop = this.loop.bind(this)
          this.gameJob = this.gameJob.bind(this)
@@ -29,6 +32,7 @@ class GameLoop {
          this.userService = userService
          this.gameStatsService = gameStatsService
          this.notifier = new Notifier(config)
+         this.eventService = eventService
     }
 
     loop() {
@@ -55,9 +59,15 @@ class GameLoop {
         
         return Promise.all(liveGames.map(async lg => {
             const stats = await this.updateStats(lg)
-            const event = GameComparer.compare(stats)
-            await this.notifier.notify(event, users)
-                .catch(e => this.userService.handleNotificationError(e))
+            const events = GameComparer.compare(stats)
+            await Promise.all(events.map(async event => {
+                await this.eventService.store(lg.game_uuid, event, stats[0])
+                try {
+                    await this.notifier.notify(event, users)
+                } catch (e: any) {
+                    this.userService.handleNotificationError(e)
+                }
+            }))
             return stats
         }))
     }
