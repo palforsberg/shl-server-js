@@ -1,5 +1,5 @@
 import { Config } from './models/Config'
-import { GameEvent } from './models/GameEvent'
+import { GameEvent, GoalInfo } from './models/GameEvent'
 import { User } from './models/User'
 var apn = require('apn')
 
@@ -48,7 +48,7 @@ class Notifier {
             return Promise.resolve(users)
         }
         return Promise.all(users
-            .filter(u => this.userHasSubscribed(u, event.game.getHomeTeamId(), event.game.getAwayTeamId()))
+            .filter(u => this.userHasSubscribed(u, event.info.homeTeamId, event.info.awayTeamId))
             .map(u => this.sendNotificationMsg(u, event)))
     }
 
@@ -61,7 +61,7 @@ class Notifier {
             return Promise.resolve(user)
         }
 
-        const isUsersTeam = user.teams.includes(event.team || '')
+        const isUsersTeam = user.teams.includes((event.info as GoalInfo)?.team ?? '')
         var notification = new apn.Notification()
 
         notification.expiry = Math.floor(Date.now() / 1000) + 3600
@@ -70,10 +70,10 @@ class Notifier {
             title: event.getTitle(isUsersTeam),
             body: event.getBody(),
         }
-        notification.collapseId = event.game.game_uuid
+        notification.collapseId = event.info.game_uuid
         notification.payload = { 
-            game_uuid: event.game.game_uuid, 
-            team: event.team 
+            game_uuid: event.info.game_uuid, 
+            team: (event.info as GoalInfo)?.team,
         }
         notification.topic = this.topic
  

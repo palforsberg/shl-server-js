@@ -1,7 +1,8 @@
 
+import { randomInt, randomUUID } from 'crypto'
 import express, { Response, Request } from 'express'
 import { Game } from '../models/Game'
-import { GameStats, PeriodStats, Player } from '../models/GameStats'
+import { GameStats, GameStatsIf, PeriodStats, Player } from '../models/GameStats'
 import { Standing } from '../models/Standing'
 
 const app = express().use(express.json())
@@ -36,6 +37,13 @@ app.get('/seasons/:season/games.json', (req: Request, res: Response) => {
 })
 app.get('/gamecenter/:game_uuid/statistics/:game_id.json', (req: Request, res: Response) => {
     const stats = gameStats[req.params.game_uuid]
+
+    if (rand() % 4 == 0) {
+        // return bad stats
+        console.log('luring')
+        return res.send(JSON.stringify({ gameState: '', game_uuid: req.params.game_uuid, recaps: {}} as GameStatsIf))    
+    }
+
     return res.send(JSON.stringify(stats))
 })
 app.get('/seasons/:season/statistics/teams/standings.json', (req: Request, res: Response) => {
@@ -61,6 +69,7 @@ function loop() {
         const stats = gameStats[e.game_uuid]
         const nrUpdates = (nrUpdatesPerGame[e.game_uuid] || 0)
         if (stats.recaps?.gameRecap) {
+            const type = rand() % 3
             if (nrUpdates % 5 == 0) {
                 // new period
                 const period = stats.getCurrentPeriodNumber()
@@ -74,25 +83,31 @@ function loop() {
                 } else {
                     stats.recaps[0] = getPeriod(e, 1)
                 }
-            } else if (rand() % 2 == 0) {
+            } else if (type == 0) {
+                // away goal
                 stats.recaps.gameRecap.awayG += 1
                 const player = getRandomPlayer(stats.playersByTeam?.[stats.getAwayTeamId()]?.players)
                 player!.g! += 1
-            } else {
+            } else if (type == 1) {
+                // home goal
                 stats.recaps.gameRecap.homeG += 1
                 const player = getRandomPlayer(stats.playersByTeam?.[stats.getHomeTeamId()]?.players)
                 player!.g! += 1
+            } else {
+                // penalty
+                stats.recaps.gameRecap.homePIM += 2
+                const player = getRandomPlayer(stats.playersByTeam?.[stats.getHomeTeamId()]?.players)
+                player!.pim! += 2
             }
         }
         nrUpdatesPerGame[e.game_uuid] = nrUpdates + 1
     })
-    console.log('Loop ', liveGames.map(e => e.game_uuid))
+    console.log('[LOOP] games updated ', liveGames.map(e => e.game_uuid))
     setTimeout(loop, 60 * 1000)
 }
 function rand(): number {
-    let min = 0;
     let max = 10000;
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return randomInt(max)
 }
 function getRandomTeam(): string {
     return teams[rand() % teams.length]

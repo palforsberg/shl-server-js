@@ -84,6 +84,7 @@ class SHL {
          .get<GameStatsIf>(`${this.statsBasePath}/gamecenter/${game_uuid}/statistics/${game_id}.json`)
          .then(stats => {
             stats.game_uuid = game_uuid
+            stats.timestamp = new Date()
             return new GameStats(stats)
          })
    }

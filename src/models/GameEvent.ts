@@ -1,3 +1,4 @@
+import { randomInt, randomUUID } from "crypto"
 import { TeamsService } from "../services/TeamsService"
 import { GameStats, Player } from "./GameStats"
 
@@ -8,28 +9,50 @@ enum EventType {
     Penalty = 'Penalty',
     PeriodStart = 'PeriodStart',
 }
+
+interface GameInfo {
+    homeTeamId: string,
+    awayTeamId: string,
+    homeResult: number,
+    awayResult: number,
+    game_uuid: string,
+}
+interface GoalInfo extends GameInfo {
+    periodFormatted: string,
+    isPowerPlay: boolean,
+    team: string,
+    player?: Player
+}
+interface PeriodStartInfo extends GameInfo {
+    periodNumber: number,
+}
+interface PenaltyInfo extends GameInfo {
+    penalty: number,
+    team: string,
+    player?: Player,
+}
+
 class GameEvent {
     type: EventType
-    game: GameStats
-    team?: string
-    player?: Player
-    info?: Object
+    info: GoalInfo | GameInfo | PeriodStartInfo | PenaltyInfo
+    timestamp: Date
+    id: string
 
     constructor(
         type: EventType, 
-        game: GameStats, 
-        team: string | undefined = undefined,
-        player: Player | undefined = undefined, 
+        info: GoalInfo | GameInfo | PeriodStartInfo | PenaltyInfo,
     ) {
+
         this.type = type
-        this.game = new GameStats({ ...game })
-        this.game.playersByTeam = undefined // to reduce size of stored event
-        this.team = team
-        this.player = player
+        this.info = info
         this.getTitle = this.getTitle.bind(this)
         this.getBody = this.getBody.bind(this)
         this.shouldNotify = this.shouldNotify.bind(this)
         this.toString = this.toString.bind(this)
+        this.getId = this.getId.bind(this)
+
+        this.id = this.getId()
+        this.timestamp = new Date()
     }
 
     getTitle(excited: boolean): string {
@@ -38,33 +61,39 @@ class GameEvent {
             case EventType.GameEnd: return 'Matchen slutade'
             case EventType.Goal: {
                 var t = excited ? 'MÅÅÅL' : 'Mål'
-                if (this.team) {
-                    t += ' för ' + TeamsService.getShortName(this.team)
+                if ((this.info as GoalInfo)?.team) {
+                    t += ' för ' + TeamsService.getShortName((this.info as GoalInfo)?.team)
                 }
                 if (excited) {
                     return t + '!'
                 }
                 return t
             }
+            case EventType.PeriodStart:
+                return `Period ${(this.info as PeriodStartInfo)?.periodNumber} började`
+            case EventType.Penalty:
+                return `Utvisning för ${(this.info as PenaltyInfo).team}`
+            default:
+                return this.type
         }
-        return 'Pucken'
     }
 
     getBody(): string | undefined {
         if (this.type == EventType.GameStart) {
-            return TeamsService.getName(this.game.getHomeTeamId())
+            return TeamsService.getName(this.info.homeTeamId)
                 + ' vs ' +
-                TeamsService.getName(this.game.getAwayTeamId())
+                TeamsService.getName(this.info.awayTeamId)
         }
         if (this.type == EventType.GameEnd) {
             return this.getScoreString()
         }
         if (this.type == EventType.Goal) {
             let t = '';
-            if (this.player) {
-                t += this.player.firstName + ' ' + this.player.familyName + ' i '
+            if ((this.info as GoalInfo)?.player) {
+                const p = (this.info as GoalInfo).player!
+                t += p.firstName + ' ' + p.familyName + ' i '
             }
-            t += this.game.getCurrentPeriodFormatted()
+            t += (this.info as GoalInfo)?.periodFormatted ?? ''
             if (t) {
                 t = '\n' + t
             }
@@ -88,11 +117,25 @@ class GameEvent {
         return this.getTitle(excited) + ' ' + this.getBody() 
     }
 
+    getId(): string {
+        switch (this.type) {
+            case EventType.GameStart:
+            case EventType.GameEnd:
+                return this.type.toString()
+            case EventType.Goal:
+                return this.type.toString() + this.getScoreString()
+            case EventType.PeriodStart:
+                return this.type.toString() + (this.info as PeriodStartInfo).periodNumber
+            default: // no real way of telling if event is unique or not
+                return randomInt(1000).toString()
+        }
+    }
+
     private getScoreString(): string {
-        const ht = this.game.getHomeTeamId()
-        const hg = this.game.getHomeResult()
-        const at = this.game.getAwayTeamId()
-        const ag = this.game.getAwayResult()
+        const ht = this.info.homeTeamId
+        const hg = this.info.homeResult
+        const at = this.info.awayTeamId
+        const ag = this.info.awayResult
         /**
          * FBK 0 - 5 LHF
          */
@@ -100,29 +143,54 @@ class GameEvent {
     }
 
     static gameStart(game: GameStats): GameEvent {
-        return new GameEvent(EventType.GameStart, game)
+        return new GameEvent(EventType.GameStart, this.getGameInfo(game))
     }
     static gameEnd(game: GameStats): GameEvent {
-        return new GameEvent(EventType.GameEnd, game)
+        return new GameEvent(EventType.GameEnd, this.getGameInfo(game))
     }
-    static goal(game: GameStats, team: string, scorer: Player | undefined, isPowerPlay: boolean): GameEvent {
-        const event = new GameEvent(EventType.Goal, game, team, scorer)
-        event.info = { isPowerPlay }
-        return event
+    static goal(game: GameStats, team: string, player: Player | undefined, isPowerPlay: boolean): GameEvent {
+        const info: GoalInfo = { 
+            ...this.getGameInfo(game),
+            periodFormatted: game.getCurrentPeriodFormatted(),
+            team,
+            player,
+            isPowerPlay 
+        }
+        return new GameEvent(EventType.Goal, info)
     }
-    static penalty(game: GameStats, player: Player, penalty: number): GameEvent {
-        const event = new GameEvent(EventType.Penalty, game, player.team, player)
-        event.info = { penalty }
-        return event
+    static penalty(game: GameStats, team: string, player: Player | undefined, penalty: number): GameEvent {
+        const info: PenaltyInfo = { 
+            ...this.getGameInfo(game),
+            penalty, 
+            team,
+            player,
+        }
+        return new GameEvent(EventType.Penalty, info)
     }
     static periodStart(game: GameStats, period: number): GameEvent {
-        const event = new GameEvent(EventType.PeriodStart, game)
-        event.info = { periodNumber: period }
-        return event
+        const info: PeriodStartInfo = { 
+            ...this.getGameInfo(game),
+            periodNumber: period 
+        }
+        return new GameEvent(EventType.PeriodStart, info)
+    }
+
+    static getGameInfo(game: GameStats): GameInfo {
+        return {
+            game_uuid: game.game_uuid,
+            homeTeamId: game.getHomeTeamId(),
+            awayTeamId: game.getAwayTeamId(),
+            homeResult: game.getHomeResult(),
+            awayResult: game.getAwayResult(),
+        }
     }
 }
 
 export {
     GameEvent,
     EventType,
+    GameInfo,
+    GoalInfo,
+    PenaltyInfo,
+    PeriodStartInfo,
 }

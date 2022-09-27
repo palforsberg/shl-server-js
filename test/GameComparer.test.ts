@@ -1,7 +1,7 @@
 import { GameStats } from '../src/models/GameStats'
 import * as GameComparer from '../src/GameComparer'
-import { EventType } from '../src/models/GameEvent';
-import exp from 'constants';
+import { EventType, GoalInfo, PenaltyInfo } from '../src/models/GameEvent';
+import { getPlayer } from './utils'
 
 test('finds new game', () => {
     const oldGames: GameStats[] = []
@@ -27,7 +27,16 @@ test('finds home team scored', () => {
     newGames.recaps!.gameRecap!.homeG++
     const result = GameComparer.compare([oldGames, newGames])[0]
     expect(result?.type).toBe(EventType.Goal)
-    expect(result?.info).toEqual({ isPowerPlay: false })
+    expect(result?.info).toEqual({
+        game_uuid: newGames.game_uuid,
+        homeTeamId: newGames.getHomeTeamId(),
+        awayTeamId: newGames.getAwayTeamId(),
+        homeResult: newGames.getHomeResult(),
+        awayResult: newGames.getAwayResult(),
+        periodFormatted: newGames.getCurrentPeriodFormatted(),
+        player: undefined,
+        team: newGames.getHomeTeamId(),
+        isPowerPlay: false } as GoalInfo)
 });
 
 test('finds away team scored', () => {
@@ -46,7 +55,7 @@ test('finds home team scored during powerplay', () => {
     newGames.recaps!.gameRecap!.awayPPG++
     const result = GameComparer.compare([oldGames, newGames])[0]
     expect(result?.type).toBe(EventType.Goal)
-    expect(result?.info).toEqual({ isPowerPlay: true })
+    expect((result?.info as GoalInfo).isPowerPlay).toBe(true)
 });
 
 test('game going from Intermission to Ongoing should not create event', () => {
@@ -86,6 +95,99 @@ test('game going from Ongoing to GameEnded should not create event if score is t
     expect(endEvent.type).toBe(EventType.GameEnd)
 })
 
+test('find penalty with player', () => {
+    // Given
+    const oldPlayer = getPlayer(1)
+    const oldGame = getGame()
+    oldGame.recaps!.gameRecap!.homePIM = 0
+    oldGame.playersByTeam!['LHF'].players = [oldPlayer]
+    const newPlayer = getPlayer(1)
+    const newGame = getGame()
+    newGame.recaps!.gameRecap!.homePIM = 3
+    newPlayer.pim = 3
+    newGame.playersByTeam!['LHF'].players = [newPlayer]
+
+    // When
+    const result = GameComparer.compare([oldGame, newGame])
+
+    // Then
+    expect(result.length).toBe(1)
+    const event = result[0]
+    expect(event.type).toBe(EventType.Penalty)
+    expect((event.info as PenaltyInfo).team).toBe('LHF')
+    expect((event.info as PenaltyInfo).player).toBe(newPlayer)
+    expect((event.info as PenaltyInfo).penalty).toBe(3)
+})
+
+test('find penalty with multiple players', () => {
+    const oldPlayer1 = getPlayer(1)
+    const oldPlayer2 = getPlayer(2)
+    const oldAPlayer3 = getPlayer(3)
+    const oldGame = getGame()
+    oldGame.recaps!.gameRecap!.homePIM = 0
+    oldGame.recaps!.gameRecap!.awayPIM = 0
+    oldGame.playersByTeam!['LHF'].players = [oldPlayer1, oldPlayer2]
+    oldGame.playersByTeam!['FBK'].players = [oldAPlayer3]
+    const newPlayer1 = getPlayer(1)
+    const newPlayer2 = getPlayer(2)
+    const newAPlayer3 = getPlayer(3)
+    const newGame = getGame()
+    newGame.recaps!.gameRecap!.homePIM = 5
+    newGame.recaps!.gameRecap!.awayPIM = 2
+    newPlayer1.pim = 3
+    newPlayer2.pim = 2
+    newAPlayer3.pim = 2
+    newGame.playersByTeam!['LHF'].players = [newPlayer1, newPlayer2]
+    newGame.playersByTeam!['FBK'].players = [newAPlayer3]
+
+    // When
+    const result = GameComparer.compare([oldGame, newGame])
+
+    // Then
+    expect(result.length).toBe(3)
+    const event1 = result[0]
+    expect(event1.type).toBe(EventType.Penalty)
+    expect((event1.info as PenaltyInfo).team).toBe('LHF')
+    expect((event1.info as PenaltyInfo).player).toBe(newPlayer1)
+    expect((event1.info as PenaltyInfo).penalty).toBe(3)
+
+    const event2 = result[1]
+    expect(event2.type).toBe(EventType.Penalty)
+    expect((event2.info as PenaltyInfo).team).toBe('LHF')
+    expect((event2.info as PenaltyInfo).player).toBe(newPlayer2)
+    expect((event2.info as PenaltyInfo).penalty).toBe(2)
+
+    const event3 = result[2]
+    expect(event3.type).toBe(EventType.Penalty)
+    expect((event3.info as PenaltyInfo).team).toBe('FBK')
+    expect((event3.info as PenaltyInfo).player).toBe(newAPlayer3)
+    expect((event3.info as PenaltyInfo).penalty).toBe(2)
+})
+
+test('find penalty with no players', () => {
+    // Given
+    const oldPlayer = getPlayer(1)
+    const oldGame = getGame()
+    oldGame.recaps!.gameRecap!.homePIM = 0
+    oldGame.playersByTeam!['LHF'].players = [oldPlayer]
+    const newPlayer = getPlayer(1)
+    const newGame = getGame()
+    newGame.recaps!.gameRecap!.homePIM = 3
+    newPlayer.pim = 0
+    newGame.playersByTeam!['LHF'].players = [newPlayer]
+
+    // When
+    const result = GameComparer.compare([oldGame, newGame])
+
+    // Then
+    expect(result.length).toBe(1)
+    const event = result[0]
+    expect(event.type).toBe(EventType.Penalty)
+    expect((event.info as PenaltyInfo).team).toBe('LHF')
+    expect((event.info as PenaltyInfo).player).toBe(undefined)
+    expect((event.info as PenaltyInfo).penalty).toBe(3)
+})
+
 test('finds nothing', () => {
     const oldGames = getGame()
     const newGames = getGame()
@@ -98,6 +200,16 @@ function getGame(): GameStats {
     return new GameStats({
         game_uuid: 'game_uuid_1',
         gameState: 'Ongoing',
+        playersByTeam: {
+            'LHF': {
+                GK: [],
+                players: [],
+            },
+            'FBK': {
+                GK: [],
+                players: [],
+            }
+        },
         recaps: {
             gameRecap: {
                 homeG: 0,

@@ -61,7 +61,11 @@ class GameLoop {
             const stats = await this.updateStats(lg)
             const events = GameComparer.compare(stats)
             await Promise.all(events.map(async event => {
-                await this.eventService.store(lg.game_uuid, event, stats[0])
+                if (this.eventService.isDuplicateEvent(event)) {
+                    console.log(`[LOOP] duplicate event ${event.toString(false)}`)
+                    return
+                }                
+                await this.eventService.store(lg.game_uuid, event, stats[0], stats[1])
                 try {
                     await this.notifier.notify(event, users)
                 } catch (e: any) {

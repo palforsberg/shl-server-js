@@ -79,11 +79,98 @@ test("Notify on started game", async () => {
     const gameStats = await gameStatsService.db.read()
     expect(gameStats[getGame().game_uuid]).toBeDefined()
     expect(gameStats[getGame().game_uuid].recaps?.gameRecap?.awayG).toBe(getGameStats().recaps?.gameRecap?.awayG)
+    expect(gameStats[getGame().game_uuid].timestamp).toBeDefined()
 
     // Notifications should be sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
     expect(sentNotification.mock.calls[0][0].alert.title).toContain('Matchen började')
+    expect(sentNotification.mock.calls[0][0].alert.body).toContain('Luleå HF vs Färjestad BK')
     expect(sentNotification.mock.calls[0][0].collapseId).toContain(getGame().game_uuid)
+})
+
+
+test("Test ignore empty response from SHLClient", async () => {
+    // Given - SHL returns a live game and some stats
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
+    mockAxios(axios, [getGame()], getGameStats(0, 0))
+    const game_uuid = getGameStats().game_uuid
+
+    // When - Loop has run
+    await looper.gameJob()
+
+    // Then - GameStats should be saved
+    var gameStats = await gameStatsService.db.read()
+    expect(gameStats[getGame().game_uuid].recaps?.gameRecap?.awayG).toBe(getGameStats().recaps?.gameRecap?.awayG)
+
+    // Notifications should be sent
+    expect(sentNotification).toHaveBeenCalledTimes(1)
+    sentNotification.mockClear()
+
+    // Given - Invalid gameStats returned
+    mockAxios(axios, [getGame()], { gameState: '', game_uuid, recaps: {}})
+
+    // When - game loop runs
+    await looper.gameJob()
+
+    // Then
+    // Game stats should not be updated
+    gameStats = await gameStatsService.db.read()
+    expect(gameStats[getGame().game_uuid]).toBeDefined()
+    expect(gameStats[getGame().game_uuid].recaps?.gameRecap?.awayG).toBe(getGameStats().recaps?.gameRecap?.awayG)
+    expect(sentNotification).toHaveBeenCalledTimes(0)
+})
+
+test("Dont notify on duplicate event", async () => {
+    // Given - SHL returns a live game and some stats
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
+    const stats = getGameStats(0, 0)
+    stats.gameState = 'Ongoing'
+    mockAxios(axios, [getGame()], stats)
+
+    // When - Loop has run
+    await looper.gameJob()
+
+    // Then - Game should be saved
+    const games = await seasonService.read()
+    expect(games[0].home_team_code).toBe(getGame().home_team_code)
+
+    // Game stats should be updated
+    const gameStats = await gameStatsService.db.read()
+    expect(gameStats[getGame().game_uuid].recaps?.gameRecap?.awayG).toBe(getGameStats().recaps?.gameRecap?.awayG)
+
+    // Notifications should be sent
+    expect(sentNotification).toHaveBeenCalledTimes(1)
+    var events = await eventService.getEvents(stats.game_uuid)
+    expect(events.length).toBe(1)
+    sentNotification.mockClear()
+
+    // Given
+    stats.gameState = 'NotStarted'
+    mockAxios(axios, [getGame()], stats)
+    
+    // When
+    await looper.gameJob()
+
+    // Then
+    // No notifications should be sent
+    expect(sentNotification).toHaveBeenCalledTimes(0)
+    var events = await eventService.getEvents(stats.game_uuid)
+    expect(events.length).toBe(1)
+    sentNotification.mockClear()
+
+    // Given
+    stats.gameState = 'Ongoing'
+    mockAxios(axios, [getGame()], stats)
+    
+    // When
+    await looper.gameJob()
+
+    // Then
+    // No notifications should be sent
+    expect(sentNotification).toHaveBeenCalledTimes(0)
+    var events = await eventService.getEvents(stats.game_uuid)
+    expect(events.length).toBe(1)
+    sentNotification.mockClear()
 })
 
 test("No notifications if no update", async () => {
@@ -195,6 +282,7 @@ test("Notification game ended", async () => {
     // Then - notifications should've been sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
     expect(sentNotification.mock.calls[0][0].alert.title).toContain('Matchen slutade')
+    expect(sentNotification.mock.calls[0][0].alert.body).toContain('LHF 1 - 0 FBK')
 
     const stats = await gameStatsService.db.read()
     var firstStat = Object.values(stats)[0]
@@ -324,7 +412,7 @@ test("SHL-client returns error on standings with standing in DB", async () => {
     expect(standings[0]).toBe(standing)
 })
 
-test('Test with gameStats.recaps being an array', async () => {
+test('Test with gameStats.recaps being an array / undefined', async () => {
     // Given - SHL returns a live game and some stats
     await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
     const gameStats = getGameStats()
@@ -340,8 +428,7 @@ test('Test with gameStats.recaps being an array', async () => {
     // Then - recaps should have been converted to object
     const stats = await gameStatsService.db.read()
     var firstStat = Object.values(stats)[0]
-    expect(firstStat.recaps!.gameRecap).toBe(undefined)
-    expect(firstStat.playersByTeam).toBe(undefined)
+    expect(firstStat).toBe(undefined)
 })
 
 test('Test season game without gamestats', async () => {
@@ -377,7 +464,7 @@ test('Test season game without gamestats', async () => {
 test('Test event stored given notifications', async () => {
         // Given - SHL returns a live game and some stats
         await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
-        const preStats = getGameStats(2, 0)
+        const preStats = new GameStats(getGameStats(2, 0))
         mockAxios(axios, [getGame(2, 0)], preStats)
     
         // When - Loop has run with game
@@ -395,9 +482,7 @@ test('Test event stored given notifications', async () => {
         expect(events).toBeDefined()
         expect(events.length).toBe(1)
         const event = events[0]
-        const expectedEvent = GameEvent.goal(new GameStats(postStats), 'LHF', event.player, false)
-        expect(JSON.stringify(event.pre)).toEqual(JSON.stringify(preStats.recaps?.gameRecap))
-        expect(JSON.stringify(event.game)).toEqual(JSON.stringify(expectedEvent.game))
-        expect(JSON.stringify(event.team)).toEqual(JSON.stringify(expectedEvent.team))
-        expect(JSON.stringify(event.player)).toEqual(JSON.stringify(expectedEvent.player))
+        preStats.timestamp = event.pre?.timestamp
+        expect(JSON.stringify(event.pre)).toEqual(JSON.stringify(preStats))
+        expect(JSON.stringify(event.info)).toEqual(JSON.stringify(event.info))
 })

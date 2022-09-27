@@ -41,7 +41,6 @@ interface PlayersOnTeam {
 
 
 class GameStatsIf {
-    game_uuid: string
     recaps?: {
         0?: PeriodStats,
         1?: PeriodStats,
@@ -52,6 +51,7 @@ class GameStatsIf {
     };
     /**
      * Values:
+     * NotStarted
      * Ongoing
      * Intermission
      * OverTime
@@ -64,7 +64,9 @@ class GameStatsIf {
     /**
      * Generated
      */
+    game_uuid: string
     status?: GameStatus;
+    timestamp?: Date;
 
     constructor() {
       this.gameState = ''
@@ -79,6 +81,7 @@ class GameStats extends GameStatsIf {
         this.gameState = stats.gameState
         this.playersByTeam = stats.playersByTeam
         this.game_uuid = stats.game_uuid
+        this.timestamp = stats.timestamp
 
         if (this.recaps && Array.isArray(this.recaps.gameRecap)) {
             // gameRecap is empty array if empty, convert to undefined instead
@@ -96,6 +99,8 @@ class GameStats extends GameStatsIf {
         this.getAwayResult = this.getAwayResult.bind(this)
         this.getHomePPG = this.getHomePPG.bind(this)
         this.getAwayPPG = this.getAwayPPG.bind(this)
+        this.getHomePIM = this.getHomePIM.bind(this)
+        this.getAwayPIM = this.getAwayPIM.bind(this)
         this.isPlayed = this.isPlayed.bind(this)
         this.isLive = this.isLive.bind(this)
         this.isOvertime = this.isOvertime.bind(this)
@@ -127,6 +132,14 @@ class GameStats extends GameStatsIf {
       return this.recaps?.gameRecap?.homePPG || 0
     }
 
+    getHomePIM(): number {
+      return this.recaps?.gameRecap?.homePIM ?? 0
+    }
+
+    getAwayPIM(): number {
+      return this.recaps?.gameRecap?.awayPIM ?? 0
+    }
+
     getAwayResult(): number {
       return this.recaps?.gameRecap?.awayG || 0
     }
@@ -148,7 +161,7 @@ class GameStats extends GameStatsIf {
     }
 
     isComing(): boolean {
-      return this.gameState == ''
+      return this.gameState == '' || this.gameState == 'NotStarted'
     }
   
     isShootout(): boolean {
@@ -271,6 +284,10 @@ interface PeriodStats {
     homeFOW: number,
     awayFOW: number,
 
+    /** 
+     * Playing
+     * Finished
+    */
     status: string,
 }
 

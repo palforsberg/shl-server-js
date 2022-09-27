@@ -1,7 +1,4 @@
-import { Config } from "../models/Config";
-import { Team } from "../models/Team";
 import { isUserValid, User } from "../models/User";
-import { Notifier } from "../Notifier";
 import { SeasonService } from "./SeasonService";
 import { GameStatsService } from "./GameStatsService";
 import { StandingService } from "./StandingService";

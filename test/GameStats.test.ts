@@ -10,6 +10,12 @@ test('Test GameStatus', () => {
     expect(stats.getGameStatus()).toBe(GameStatus.Coming)
 
     // When
+    stats.gameState = 'NotStarted'
+
+    // Then
+    expect(stats.getGameStatus()).toBe(GameStatus.Coming)
+
+    // When
     stats.gameState = 'Ongoing'
 
     // Then
