@@ -1,6 +1,6 @@
 import { Config } from "../src/models/Config"
 import { Game } from "../src/models/Game"
-import { GameStats, GameStatsIf, Player } from "../src/models/GameStats"
+import { GameStats, GameStatsIf, PeriodStats, Player } from "../src/models/GameStats"
 import { Standing } from "../src/models/Standing"
 
 function getStanding(team_code = 'LHF', gp = 123, points = 66, rank = 1, diff = 6): Standing {
@@ -34,24 +34,7 @@ function getGameStats(homeG = 0, awayG = 0): GameStatsIf {
     return {
         game_uuid: 'game_uuid',
         recaps: {
-            gameRecap: {
-                homeTeamId: 'LHF',
-                awayTeamId: 'FBK',
-                periodNumber: 0,
-                awayG,
-                homeG,
-                awayHits: 15,
-                homeHits: 15,
-                awayFOW: 0,
-                homeFOW: 0,
-                awayPIM: 0,
-                homePIM: 0,
-                awaySOG: 11,
-                homeSOG: 66,
-                awayPPG: 0,
-                homePPG: 0,
-                status: 'Finished',
-            },
+            gameRecap: getPeriod(undefined, undefined, undefined, homeG, awayG),
         },
         gameState: 'Ongoing',
         playersByTeam: {
@@ -64,6 +47,28 @@ function getGameStats(homeG = 0, awayG = 0): GameStatsIf {
                 GK: [],
             }
         }
+    }
+}
+
+function getPeriod(periodNumber = 0, homeTeamId = 'LHF', awayTeamId = 'FBK', homeG = 0, awayG = 0, status = 'Playing'): PeriodStats {
+    return {
+
+        homeTeamId,
+        awayTeamId,
+        periodNumber,
+        awayG,
+        homeG,
+        awayHits: 15,
+        homeHits: 15,
+        awayFOW: 0,
+        homeFOW: 0,
+        awayPIM: 0,
+        homePIM: 0,
+        awaySOG: 11,
+        homeSOG: 66,
+        awayPPG: 0,
+        homePPG: 0,
+        status,
     }
 }
 
@@ -137,6 +142,7 @@ function mockApn() {
 export {
     getStanding,
     getGame,
+    getPeriod,
     getGameStats,
     getPlayer,
     mockAxios,

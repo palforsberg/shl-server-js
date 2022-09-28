@@ -57,7 +57,9 @@ const restService = new RestService(
    standingsService,
    users,
    statsService,
-   eventService)
+   eventService,
+   shl,
+)
 
 restService.setupRoutes()
 restService.startListen(config.port)

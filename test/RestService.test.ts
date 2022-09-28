@@ -63,6 +63,7 @@ const restService = new RestService(
     userService,
     gameStatsService,
     eventService,
+    shl,
 )
 
 restService.setupRoutes()

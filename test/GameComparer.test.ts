@@ -1,7 +1,7 @@
 import { GameStats } from '../src/models/GameStats'
 import * as GameComparer from '../src/GameComparer'
-import { EventType, GoalInfo, PenaltyInfo } from '../src/models/GameEvent';
-import { getPlayer } from './utils'
+import { EventType, GoalInfo, PenaltyInfo, PeriodInfo } from '../src/models/GameEvent';
+import { getPeriod, getPlayer } from './utils'
 
 test('finds new game', () => {
     const oldGames: GameStats[] = []
@@ -177,15 +177,73 @@ test('find penalty with no players', () => {
     newGame.playersByTeam!['LHF'].players = [newPlayer]
 
     // When
+    let result = GameComparer.compare([oldGame, newGame])
+
+    // Then - no event found
+    expect(result.length).toBe(0)
+
+    // Given - player gets PIM
+    newPlayer.pim = 2
+    newGame.playersByTeam!['LHF'].players = [newPlayer]
+
+    // When 
+    result = GameComparer.compare([oldGame, newGame])
+
+    // Then - event is found
+    expect(result.length).toBe(1)
+    const event = result[0]
+    expect(event.type).toBe(EventType.Penalty)
+    expect((event.info as PenaltyInfo).team).toBe('LHF')
+    expect((event.info as PenaltyInfo).player).toBe(newPlayer)
+    expect((event.info as PenaltyInfo).penalty).toBe(2)
+})
+
+test('find period start', () => {
+    const oldGame = getGame()
+    const newGame = getGame()
+
+    newGame.recaps![0] = getPeriod(1)
+
+    // When 
     const result = GameComparer.compare([oldGame, newGame])
 
     // Then
     expect(result.length).toBe(1)
     const event = result[0]
-    expect(event.type).toBe(EventType.Penalty)
-    expect((event.info as PenaltyInfo).team).toBe('LHF')
-    expect((event.info as PenaltyInfo).player).toBe(undefined)
-    expect((event.info as PenaltyInfo).penalty).toBe(3)
+    expect(event.type).toBe(EventType.PeriodStart)
+    expect((event.info as PeriodInfo).periodNumber).toBe(1)
+})
+
+test('find period end', () => {
+    const oldGame = getGame()
+    const newGame = getGame()
+    oldGame.recaps![0] = getPeriod(1)
+    newGame.recaps![0] = getPeriod(1)
+    newGame.recaps![0].status = 'Finished'
+
+    // When 
+    const result = GameComparer.compare([oldGame, newGame])
+
+    // Then
+    expect(result.length).toBe(1)
+    const event = result[0]
+    expect(event.type).toBe(EventType.PeriodEnd)
+    expect((event.info as PeriodInfo).periodNumber).toBe(1)
+})
+
+test('find no period end if periodnumber is differing', () => {
+    const oldGame = getGame()
+    const newGame = getGame()
+    oldGame.recaps![0] = getPeriod(2)
+    newGame.recaps![0] = getPeriod(1)
+    newGame.recaps![0].status = 'Finished'
+
+    // When 
+    const result = GameComparer.compare([oldGame, newGame])
+        .filter(e => e.type == EventType.PeriodEnd)
+
+    // Then
+    expect(result.length).toBe(0)
 })
 
 test('finds nothing', () => {

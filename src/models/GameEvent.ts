@@ -8,6 +8,7 @@ enum EventType {
     Goal = 'Goal',
     Penalty = 'Penalty',
     PeriodStart = 'PeriodStart',
+    PeriodEnd = 'PeriodEnd',
 }
 
 interface GameInfo {
@@ -23,7 +24,7 @@ interface GoalInfo extends GameInfo {
     team: string,
     player?: Player
 }
-interface PeriodStartInfo extends GameInfo {
+interface PeriodInfo extends GameInfo {
     periodNumber: number,
 }
 interface PenaltyInfo extends GameInfo {
@@ -34,13 +35,13 @@ interface PenaltyInfo extends GameInfo {
 
 class GameEvent {
     type: EventType
-    info: GoalInfo | GameInfo | PeriodStartInfo | PenaltyInfo
+    info: GoalInfo | GameInfo | PeriodInfo | PenaltyInfo
     timestamp: Date
     id: string
 
     constructor(
         type: EventType, 
-        info: GoalInfo | GameInfo | PeriodStartInfo | PenaltyInfo,
+        info: GoalInfo | GameInfo | PeriodInfo | PenaltyInfo,
     ) {
 
         this.type = type
@@ -70,7 +71,9 @@ class GameEvent {
                 return t
             }
             case EventType.PeriodStart:
-                return `Period ${(this.info as PeriodStartInfo)?.periodNumber} började`
+                return `Period ${(this.info as PeriodInfo)?.periodNumber} började`
+            case EventType.PeriodEnd:
+                return `Period ${(this.info as PeriodInfo)?.periodNumber} slutade`
             case EventType.Penalty:
                 return `Utvisning för ${(this.info as PenaltyInfo).team}`
             default:
@@ -125,7 +128,8 @@ class GameEvent {
             case EventType.Goal:
                 return this.type.toString() + this.getScoreString()
             case EventType.PeriodStart:
-                return this.type.toString() + (this.info as PeriodStartInfo).periodNumber
+            case EventType.PeriodEnd: 
+                return this.type.toString() + (this.info as PeriodInfo).periodNumber
             default: // no real way of telling if event is unique or not
                 return randomInt(1000).toString()
         }
@@ -168,11 +172,19 @@ class GameEvent {
         return new GameEvent(EventType.Penalty, info)
     }
     static periodStart(game: GameStats, period: number): GameEvent {
-        const info: PeriodStartInfo = { 
+        const info: PeriodInfo = { 
             ...this.getGameInfo(game),
             periodNumber: period 
         }
         return new GameEvent(EventType.PeriodStart, info)
+    }
+
+    static periodEnd(game: GameStats, period: number): GameEvent {
+        const info: PeriodInfo = { 
+            ...this.getGameInfo(game),
+            periodNumber: period,
+        }
+        return new GameEvent(EventType.PeriodEnd, info)
     }
 
     static getGameInfo(game: GameStats): GameInfo {
@@ -192,5 +204,5 @@ export {
     GameInfo,
     GoalInfo,
     PenaltyInfo,
-    PeriodStartInfo,
+    PeriodInfo,
 }

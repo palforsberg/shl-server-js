@@ -6,6 +6,7 @@ import { TeamsService } from "./TeamsService";
 import { UserService } from "./UserService";
 import { GameStats } from "../models/GameStats";
 import { EventService } from "./EventService";
+import { SHL } from "../ShlClient";
 
 class RestService {
     private seasonServices: Record<number, SeasonService>
@@ -13,6 +14,7 @@ class RestService {
     private users: UserService
     private statsService: GameStatsService
     private eventService: EventService
+    private shlClient: SHL
     private app: any
 
     constructor(
@@ -22,6 +24,7 @@ class RestService {
         users: UserService,
         statsService: GameStatsService,
         eventService: EventService,
+        shlClient: SHL,
     ) {
         this.app = app
         this.seasonServices = seasonServices
@@ -29,6 +32,7 @@ class RestService {
         this.users = users
         this.statsService = statsService
         this.eventService = eventService
+        this.shlClient = shlClient
     }
 
     startListen(port: number) {
@@ -90,6 +94,11 @@ class RestService {
          this.app.get('/events/:game_uuid', (req: any, res: any) => {
             return this.eventService.getEvents(req.params.game_uuid)
                .then(events => res.send(JSON.stringify(events)))
+         })
+
+         this.app.get('/info/:season/:game_id', (req: any, res: any) => {
+            return this.shlClient.getGameInfo(req.params.season, req.params.game_id)
+               .then(rsp => res.send(JSON.stringify(rsp)))
          })
     }
 }
