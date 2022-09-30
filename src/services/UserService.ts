@@ -1,6 +1,6 @@
+import { Errors } from "apns2";
 import { Db } from "../Db";
 import { User } from "../models/User";
-import { NotifyError } from "../Notifier";
 
 class UserService {
     db: Db<User[]>
@@ -21,12 +21,8 @@ class UserService {
         })
     }
 
-    handleNotificationError(error: Error) {
-        if (error instanceof NotifyError) {
-            console.log('[USER] NotifyError ' + JSON.stringify(error.failed))
-        } else {
-            console.log('[USER] Unknown Error ' + JSON.stringify(error))
-        }
+    handleNotificationError(error: Errors, token: string) {
+        console.log(`[USER] NotificationError ${error} for ${token}`)
     }
 }
 

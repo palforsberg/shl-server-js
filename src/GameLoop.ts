@@ -23,7 +23,8 @@ class GameLoop {
         userService: UserService,
         gameStatsService: GameStatsService,
         currentStanding: StandingService,
-        eventService: EventService) {
+        eventService: EventService,
+        notifier: Notifier) {
 
          this.loop = this.loop.bind(this)
          this.gameJob = this.gameJob.bind(this)
@@ -31,8 +32,8 @@ class GameLoop {
          this.standingsService = currentStanding
          this.userService = userService
          this.gameStatsService = gameStatsService
-         this.notifier = new Notifier(config)
          this.eventService = eventService
+         this.notifier = notifier
     }
 
     loop() {
@@ -66,11 +67,7 @@ class GameLoop {
                     return
                 }                
                 await this.eventService.store(lg.game_uuid, event, stats[0], stats[1])
-                try {
-                    await this.notifier.notify(event, users)
-                } catch (e: any) {
-                    this.userService.handleNotificationError(e)
-                }
+                await this.notifier.notify(event, users)
             }))
             return stats
         }))

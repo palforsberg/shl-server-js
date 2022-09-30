@@ -16,12 +16,6 @@ function compare(games: [GameStats | undefined, GameStats | undefined]): GameEve
         result.push(GameEvent.periodStart(updated, updated.getCurrentPeriodNumber()))
     }
 
-    if (old.getCurrentPeriodNumber() == updated.getCurrentPeriodNumber() &&
-        old.getCurrentPeriod()?.status != 'Finished' && updated.getCurrentPeriod()?.status == 'Finished') {
-        const period = updated.getCurrentPeriodNumber()
-        result.push(GameEvent.periodEnd(updated, period))
-    }
-
     if (old.getHomeResult() < updated.getHomeResult()) {
         const scorer = getScorer(old.getHomePlayers(), updated.getHomePlayers())
         const isPowerPlay = old.getHomePPG() < updated.getHomePPG()
@@ -37,6 +31,12 @@ function compare(games: [GameStats | undefined, GameStats | undefined]): GameEve
         .forEach(p => result.push(GameEvent.penalty(updated, updated.getHomeTeamId(), p[0], p[1])))
     getPenaltyPlayers(old.getAwayPlayers(), updated.getAwayPlayers())
         .forEach(p => result.push(GameEvent.penalty(updated, updated.getAwayTeamId(), p[0], p[1])))
+
+    if (old.getCurrentPeriodNumber() == updated.getCurrentPeriodNumber() &&
+        old.getCurrentPeriod()?.status != 'Finished' && updated.getCurrentPeriod()?.status == 'Finished') {
+        const period = updated.getCurrentPeriodNumber()
+        result.push(GameEvent.periodEnd(updated, period))
+    }
 
     if (!old.isPlayed() && updated.isPlayed()) {
         result.push(GameEvent.gameEnd(updated))

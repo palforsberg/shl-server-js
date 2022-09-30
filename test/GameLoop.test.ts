@@ -3,13 +3,13 @@ const fs = require('fs')
 const axios = require('axios')
 
 import { GameStatus } from "../src/models/Game";
-import { GameEvent } from "../src/models/GameEvent";
+import { EventType } from "../src/models/GameEvent";
 import { GameStats } from "../src/models/GameStats";
-import { User } from "../src/models/User";
+import { Notifier } from "../src/Notifier";
 import { Service } from "../src/Service";
 import { EventService } from "../src/services/EventService";
 import { GameStatsService } from "../src/services/GameStatsService";
-import { getConfig, getGame, getGameStats, getStanding, mockApn, mockAxios, mockAxiosFn } from "./utils";
+import { getConfig, getGame, getGameStats, getStanding, mockAxios, mockAxiosFn } from "./utils";
 
 const GameLoop = require('../src/GameLoop').GameLoop
 const { SeasonService } = require('../src/services/SeasonService');
@@ -20,15 +20,29 @@ const { SHL } = require('../src/ShlClient')
 const season = 2030
 
 jest.mock("axios")
-jest.mock("apn")
+const sentNotification = jest.fn().mockResolvedValue({ failed: [] })
+jest.mock("apns2", () => ({
+    ...jest.requireActual('apns2'),
+    ApnsClient: class MockedApnsClient {
+        constructor() {
+    
+        }
+        on() {}
+        sendMany(notifications: Notification[]) {
+            sentNotification(notifications[0])
+        }
+    },
+    Errors: {
+        error: 'hejsan',
+    }
+}))
+
 jest.mock("fs")
 
 fs.promises = {
     readFile: () => Promise.reject({ code: 'ENOENT'}),
     writeFile: () => Promise.resolve({}),
 }
-
-const sentNotification = mockApn()
 
 Service.prototype.hasExpired = jest.fn().mockReturnValue(true)
 
@@ -39,13 +53,16 @@ const gameStatsService = new GameStatsService(shl)
 const seasonService = new SeasonService(season, 0, shl, gameStatsService)
 const standingsService = new StandingService(season, 4, shl)
 const eventService = new EventService()
+const notifier = new Notifier(config)
+
 const looper = new GameLoop(
     config,
     seasonService,
     userService,
     gameStatsService,
     standingsService,
-    eventService)
+    eventService,
+    notifier)
 
 jest.setTimeout(20_000_000)
 
@@ -83,9 +100,9 @@ test("Notify on started game", async () => {
 
     // Notifications should be sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
-    expect(sentNotification.mock.calls[0][0].alert.title).toContain('Matchen började')
-    expect(sentNotification.mock.calls[0][0].alert.body).toContain('Luleå HF vs Färjestad BK')
-    expect(sentNotification.mock.calls[0][0].collapseId).toContain(getGame().game_uuid)
+    expect(sentNotification.mock.calls[0][0].options.alert.title).toContain('Matchen började')
+    expect(sentNotification.mock.calls[0][0].options.alert.body).toContain('Luleå HF vs Färjestad BK')
+    expect(sentNotification.mock.calls[0][0].options.collapseId).toContain(getGame().game_uuid)
 })
 
 
@@ -140,7 +157,7 @@ test("Dont notify on duplicate event", async () => {
 
     // Notifications should be sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
-    var events = await eventService.getEvents(stats.game_uuid)
+    var events = (await eventService.getEvents(stats.game_uuid)).filter(e => e.type == EventType.GameStart)
     expect(events.length).toBe(1)
     sentNotification.mockClear()
 
@@ -154,7 +171,7 @@ test("Dont notify on duplicate event", async () => {
     // Then
     // No notifications should be sent
     expect(sentNotification).toHaveBeenCalledTimes(0)
-    var events = await eventService.getEvents(stats.game_uuid)
+    var events = (await eventService.getEvents(stats.game_uuid)).filter(e => e.type == EventType.GameStart)
     expect(events.length).toBe(1)
     sentNotification.mockClear()
 
@@ -168,7 +185,7 @@ test("Dont notify on duplicate event", async () => {
     // Then
     // No notifications should be sent
     expect(sentNotification).toHaveBeenCalledTimes(0)
-    var events = await eventService.getEvents(stats.game_uuid)
+    var events = (await eventService.getEvents(stats.game_uuid)).filter(e => e.type == EventType.GameStart)
     expect(events.length).toBe(1)
     sentNotification.mockClear()
 })
@@ -206,8 +223,8 @@ test("Notification on score", async () => {
 
     // Then - notifications should've been sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
-    expect(sentNotification.mock.calls[0][0].alert.title).toEqual('MÅÅÅL för Luleå!')
-    expect(sentNotification.mock.calls[0][0].alert.body).toEqual('LHF 1 - 0 FBK\nMats Matsson i 1:a perioden')
+    expect(sentNotification.mock.calls[0][0].options.alert.title).toEqual('MÅÅÅL för Luleå!')
+    expect(sentNotification.mock.calls[0][0].options.alert.body).toEqual('LHF 1 - 0 FBK\nMats Matsson i 1:a perioden')
 })
 
 test("Notification on score, only from game stats", async () => {
@@ -241,8 +258,8 @@ test("Notification on score, only from game stats", async () => {
 
     // Then - notifications should've been sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
-    expect(sentNotification.mock.calls[0][0].alert.title).toEqual('MÅÅÅL för Luleå!')
-    expect(sentNotification.mock.calls[0][0].alert.body).toEqual('LHF 3 - 0 FBK\n1:a perioden')
+    expect(sentNotification.mock.calls[0][0].options.alert.title).toEqual('MÅÅÅL för Luleå!')
+    expect(sentNotification.mock.calls[0][0].options.alert.body).toEqual('LHF 3 - 0 FBK\n1:a perioden')
 
     // GameStats should update the game db
     games = await seasonService.read()
@@ -281,8 +298,8 @@ test("Notification game ended", async () => {
 
     // Then - notifications should've been sent
     expect(sentNotification).toHaveBeenCalledTimes(1)
-    expect(sentNotification.mock.calls[0][0].alert.title).toContain('Matchen slutade')
-    expect(sentNotification.mock.calls[0][0].alert.body).toContain('LHF 1 - 0 FBK')
+    expect(sentNotification.mock.calls[0][0].options.alert.title).toContain('Matchen slutade')
+    expect(sentNotification.mock.calls[0][0].options.alert.body).toContain('LHF 1 - 0 FBK')
 
     const stats = await gameStatsService.db.read()
     var firstStat = Object.values(stats)[0]

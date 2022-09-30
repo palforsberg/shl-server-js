@@ -13,7 +13,7 @@ import { StandingService } from "../src/services/StandingService"
 import { TeamsService } from "../src/services/TeamsService"
 import { UserService } from "../src/services/UserService"
 import { SHL } from "../src/ShlClient"
-import { getConfig, getGame, getGameStats, getStanding, mockApn, mockAxios } from "./utils"
+import { getConfig, getGame, getGameStats, getStanding, mockAxios } from "./utils"
 import { GameStats } from '../src/models/GameStats';
 import { GameStatus } from '../src/models/Game';
 import { EventService } from '../src/services/EventService';
@@ -27,8 +27,6 @@ fs.promises = {
 }
 
 const app = new Express()
-
-mockApn()
 
 const season = 2030
 const config = getConfig()

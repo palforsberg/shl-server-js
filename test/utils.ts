@@ -35,6 +35,7 @@ function getGameStats(homeG = 0, awayG = 0): GameStatsIf {
         game_uuid: 'game_uuid',
         recaps: {
             gameRecap: getPeriod(undefined, undefined, undefined, homeG, awayG),
+            0: getPeriod(1, undefined, undefined, homeG, awayG, 'Playing')
         },
         gameState: 'Ongoing',
         playersByTeam: {
@@ -130,15 +131,6 @@ standings: (() => Promise<any>) = () => Promise.resolve({ data: getStanding() })
     axios.post = jest.fn().mockResolvedValue({ data: 'fake data' })
 }
 
-const apn = require('apn')
-function mockApn() {
-    const sentNotification = jest.fn().mockResolvedValue({ failed: [] })
-    apn.Provider = class {
-        send = sentNotification
-    }
-
-    return sentNotification
-}
 export {
     getStanding,
     getGame,
@@ -148,5 +140,4 @@ export {
     mockAxios,
     mockAxiosFn,
     getConfig,
-    mockApn,
 }

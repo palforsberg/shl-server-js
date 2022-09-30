@@ -12,6 +12,7 @@ import { StandingService } from './services/StandingService'
 import { RestService } from './services/RestService'
 import express from 'express'
 import { EventService } from './services/EventService'
+import { Notifier } from './Notifier'
 
 
 const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
@@ -27,8 +28,9 @@ const shl = new SHL(config)
 const currentSeason = 2022
 const nrSeasons = 4
 
+
 const teamsService = new TeamsService()
-const users = new UserService()
+const userService = new UserService()
 const standingsService = new StandingService(currentSeason, nrSeasons, shl)
 
 const statsService = new GameStatsService(shl)
@@ -41,13 +43,17 @@ const seasonServices = {
 
 const eventService = new EventService()
 
+const notifier = new Notifier(config)
+notifier.setOnError(userService.handleNotificationError)
+
 const gameLoop = new GameLoop(
    config,
    seasonServices[currentSeason],
-   users,
+   userService,
    statsService,
    standingsService,
-   eventService)
+   eventService,
+   notifier)
 
 const app = express().use(express.json())
 
@@ -55,7 +61,7 @@ const restService = new RestService(
    app,
    seasonServices,
    standingsService,
-   users,
+   userService,
    statsService,
    eventService,
    shl,
