@@ -18,6 +18,7 @@ class Notifier {
         }
         this.apns = new ApnsClient(options)
         this.enabled = config.send_notifications
+        this.setOnError = this.setOnError.bind(this)
     }
 
     setOnError(onError: (error: Errors, token: string) => void) {

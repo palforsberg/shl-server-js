@@ -51,12 +51,12 @@ class RestService {
          this.app.get('/game/:game_uuid/:game_id', (req: any, res: any) => {
             let stats = this.statsService.getFromDb(req.params.game_uuid)
             if (stats != undefined) {
-               stats.events = this.eventService.getCachedEvents(req.params.game_uuid)
-            } else {
-               stats = GameStats.empty()
+               return this.eventService.getEvents(req.params.game_uuid).then(events => {
+                  stats!.events = events
+                  return res.send(JSON.stringify(stats))
+               })
             }
-
-            return res.send(JSON.stringify(stats))
+            return res.send(JSON.stringify(GameStats.empty()))
          })
          
          this.app.get('/standings/:season', (req: any, res: any) => {
