@@ -187,6 +187,7 @@ test('Get game stats', async () => {
 
     // Then
     expect(res.send).toHaveBeenCalledTimes(1)
+    stats.events = []
     const body = JSON.parse(res.body)
     expect(body).toStrictEqual(stats)
 })

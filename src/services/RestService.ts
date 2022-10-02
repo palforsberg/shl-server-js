@@ -40,7 +40,6 @@ class RestService {
     }
 
     setupRoutes() {
-
         this.app.get('/games/:season', (req: any, res: any) => {
             const season = this.seasonServices[req.params.season]
             if (!season) {
@@ -50,7 +49,13 @@ class RestService {
          })
          
          this.app.get('/game/:game_uuid/:game_id', (req: any, res: any) => {
-            const stats = this.statsService.getFromDb(req.params.game_uuid) || GameStats.empty()
+            let stats = this.statsService.getFromDb(req.params.game_uuid)
+            if (stats != undefined) {
+               stats.events = this.eventService.getCachedEvents(req.params.game_uuid)
+            } else {
+               stats = GameStats.empty()
+            }
+
             return res.send(JSON.stringify(stats))
          })
          

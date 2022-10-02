@@ -3,6 +3,7 @@
  */
 
 import { GameStatus } from "./Game"
+import { GameEvent } from "./GameEvent"
 
 interface Player {
     player: number
@@ -67,6 +68,11 @@ class GameStatsIf {
     game_uuid: string
     status?: GameStatus;
     timestamp?: Date;
+
+    /**
+     * Decorated
+     */
+    events?: GameEvent[]
 
     constructor() {
       this.gameState = ''

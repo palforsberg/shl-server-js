@@ -36,7 +36,7 @@ class Db<T> {
    }
 
    readCached(): T {
-      return this.in_mem || this.defaultValue
+      return this.in_mem ?? this.defaultValue
    }
 
    private storeInMemory(data: T): T {

@@ -35,8 +35,8 @@ class EventService {
         return duplicateEvent != undefined
     }
 
-    private getCachedEvents(game_uuid: string): GameEvent[] {
-        return (this.db.readCached() ?? {})[game_uuid] ?? []
+    getCachedEvents(game_uuid: string): GameEvent[] {
+        return this.db.readCached()[game_uuid] ?? []
     }
 }
 
