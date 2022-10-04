@@ -33,6 +33,7 @@ test('finds home team scored', () => {
         awayTeamId: newGames.getAwayTeamId(),
         homeResult: newGames.getHomeResult(),
         awayResult: newGames.getAwayResult(),
+        periodNumber: newGames.getCurrentPeriodNumber(),
         periodFormatted: newGames.getCurrentPeriodFormatted(),
         player: undefined,
         team: newGames.getHomeTeamId(),

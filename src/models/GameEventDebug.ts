@@ -1,13 +1,21 @@
 import { GameEvent } from "./GameEvent"
-import { GameStats, PeriodStats } from "./GameStats"
+import { GameStats } from "./GameStats"
 
 class GameEventDebug extends GameEvent {
     pre: GameStats | undefined
     post: GameStats | undefined
     constructor(event: GameEvent, pre: GameStats | undefined, post: GameStats | undefined) {
         super(event.type, event.info)
-        this.pre = pre
-        this.post = post
+
+        if (pre != undefined) {
+            this.pre = new GameStats(pre)
+            this.pre.playersByTeam = undefined
+        }
+
+        if (post != undefined) {
+            this.post = new GameStats(post)
+            this.post.playersByTeam = undefined
+        }
     }
 }
 

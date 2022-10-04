@@ -242,7 +242,7 @@ function generateSeasonGame(type: string, e: number): Game {
         penalty_shots: false,
         start_date_time: new Date(),
         season: '2022',
-        game_type: 'Season',
+        game_type: 'Regular season game',
         status: undefined,
     }
 }

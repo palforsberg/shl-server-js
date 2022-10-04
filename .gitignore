@@ -7,3 +7,5 @@ deployment
 .DS_Store
 dist
 todo
+copy_db.sh
+log/

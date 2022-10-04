@@ -100,11 +100,6 @@ class RestService {
             return this.eventService.getEvents(req.params.game_uuid)
                .then(events => res.send(JSON.stringify(events)))
          })
-
-         this.app.get('/info/:season/:game_id', (req: any, res: any) => {
-            return this.shlClient.getGameInfo(req.params.season, req.params.game_id)
-               .then(rsp => res.send(JSON.stringify(rsp)))
-         })
     }
 }
 

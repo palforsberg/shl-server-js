@@ -17,6 +17,7 @@ interface GameInfo {
     homeResult: number,
     awayResult: number,
     game_uuid: string,
+    periodNumber: number,
 }
 interface GoalInfo extends GameInfo {
     periodFormatted: string,
@@ -25,7 +26,6 @@ interface GoalInfo extends GameInfo {
     player?: Player
 }
 interface PeriodInfo extends GameInfo {
-    periodNumber: number,
 }
 interface PenaltyInfo extends GameInfo {
     penalty: number,
@@ -171,18 +171,16 @@ class GameEvent {
         }
         return new GameEvent(EventType.Penalty, info)
     }
-    static periodStart(game: GameStats, period: number): GameEvent {
+    static periodStart(game: GameStats): GameEvent {
         const info: PeriodInfo = { 
             ...this.getGameInfo(game),
-            periodNumber: period 
         }
         return new GameEvent(EventType.PeriodStart, info)
     }
 
-    static periodEnd(game: GameStats, period: number): GameEvent {
+    static periodEnd(game: GameStats): GameEvent {
         const info: PeriodInfo = { 
             ...this.getGameInfo(game),
-            periodNumber: period,
         }
         return new GameEvent(EventType.PeriodEnd, info)
     }
@@ -194,6 +192,7 @@ class GameEvent {
             awayTeamId: game.getAwayTeamId(),
             homeResult: game.getHomeResult(),
             awayResult: game.getAwayResult(),
+            periodNumber: game.getCurrentPeriodNumber(),
         }
     }
 }

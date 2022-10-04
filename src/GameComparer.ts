@@ -13,7 +13,7 @@ function compare(games: [GameStats | undefined, GameStats | undefined]): GameEve
     }
 
     if (old.getCurrentPeriodNumber() != updated.getCurrentPeriodNumber()) {
-        result.push(GameEvent.periodStart(updated, updated.getCurrentPeriodNumber()))
+        result.push(GameEvent.periodStart(updated))
     }
 
     if (old.getHomeResult() < updated.getHomeResult()) {
@@ -34,8 +34,7 @@ function compare(games: [GameStats | undefined, GameStats | undefined]): GameEve
 
     if (old.getCurrentPeriodNumber() == updated.getCurrentPeriodNumber() &&
         old.getCurrentPeriod()?.status != 'Finished' && updated.getCurrentPeriod()?.status == 'Finished') {
-        const period = updated.getCurrentPeriodNumber()
-        result.push(GameEvent.periodEnd(updated, period))
+        result.push(GameEvent.periodEnd(updated))
     }
 
     if (!old.isPlayed() && updated.isPlayed()) {

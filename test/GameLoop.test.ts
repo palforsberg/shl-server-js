@@ -500,6 +500,7 @@ test('Test event stored given notifications', async () => {
         expect(events.length).toBe(1)
         const event = events[0]
         preStats.timestamp = event.pre?.timestamp
+        preStats.playersByTeam = undefined
         expect(JSON.stringify(event.pre)).toEqual(JSON.stringify(preStats))
         expect(JSON.stringify(event.info)).toEqual(JSON.stringify(event.info))
 })
