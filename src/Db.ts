@@ -48,7 +48,7 @@ class Db<T> {
       if (e.code == 'ENOENT') {
          console.log('[DB] could not find db-file', db)
       } else {
-         console.error('[DB] ERROR reading', e)
+         console.error('[DB] Error reading:', e)
       }
       return this.in_mem || this.defaultValue
    }

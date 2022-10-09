@@ -1,7 +1,7 @@
 import { Config } from "./models/Config"
 
 const winston = require('winston')
-const { combine, timestamp, printf } = winston.format
+const { combine, timestamp, printf, errors } = winston.format
 
 function setupLogger(config: Config) {
     const fileOption = {
@@ -10,7 +10,11 @@ function setupLogger(config: Config) {
         tailable: true
     }
     const logger = winston.createLogger({
-        format: combine(timestamp(), printf((i: any) => `${i.timestamp}: ${i.message}`)),
+        format: combine(
+            errors({ stack: true }),
+            timestamp(), 
+            printf((i: any) => `${i.timestamp}: ${i.message}`),
+        ),
         exitOnError: false,
         transports: [
             new winston.transports.File({ filename: 'deployment/error.log', level: 'error', ...fileOption }),
@@ -27,7 +31,17 @@ function setupLogger(config: Config) {
         logger.exceptions.handle(new winston.transports.Console())
     }
     console.log = (...e) => logger.info(e.join(' '))
-    console.error = (...e) => logger.error(e.join(' '))
+    console.error = (...e) => {
+        const error = e.find(e => e instanceof Error)
+        if (error) {
+            logger.error(error.stack)
+        }
+        return logger.error(e.join(' '))
+    }
+
+    process.on('uncaughtException', e => {
+        console.error('uncaughtException:', e)
+    })
 }
 
 export {

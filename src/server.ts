@@ -73,8 +73,8 @@ restService.startListen(config.port)
 Object.entries(seasonServices).forEach(e => e[1].update())
 Object.entries(standingsService.seasons).forEach(e => e[1].update())
 
-// Populate stats cache
 try {
+   // Populate stats cache
    statsService.db.read().then(() => gameLoop.loop())
 } catch (e) {
    console.log('[SERVER] Loop threw ', e)

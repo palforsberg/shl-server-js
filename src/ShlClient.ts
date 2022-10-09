@@ -83,7 +83,7 @@ class SHL {
       return this.getWithToken<Object>(`${this.basePath}/seasons/${season}/games/${game_id}.json`)
    }
 
-   getGameStats(game_uuid: string, game_id: string): Promise<GameStats>  {
+   getGameStats(game_uuid: string, game_id: number): Promise<GameStats>  {
       return this
          .get<GameStatsIf>(`${this.statsBasePath}/gamecenter/${game_uuid}/statistics/${game_id}.json`)
          .then(stats => {

@@ -45,7 +45,7 @@ class Notifier {
             await this.apns.sendMany(notifications)
             notifications.forEach(e => console.log('[NOTIFIER] Sent ' + JSON.stringify(e.options.alert) + ' to ' + e.deviceToken))
         } catch (e) {
-            console.error('[NOTIFIER] SendMany Error ', e)
+            console.error('[NOTIFIER] Error:', e)
         }
 
         return users

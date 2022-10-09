@@ -47,7 +47,7 @@ class GameLoop {
            .catch(e => {
                var delay = 60
                setTimeout(this.loop, delay * 1000)
-               console.error(`[LOOP] Error ${JSON.stringify(e)}`)
+               console.error('[LOOP] Error:', e)
                console.log(`[LOOP] ******* Ended with Error ******* next in ${delay}s`)
            })
     }

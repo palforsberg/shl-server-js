@@ -66,8 +66,8 @@ class GameStatsIf {
      * Generated
      */
     game_uuid: string
-    status?: GameStatus;
-    timestamp?: Date;
+    status?: GameStatus
+    timestamp?: Date
 
     /**
      * Decorated

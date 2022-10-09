@@ -20,7 +20,7 @@ class GameStatsService {
         if (game == undefined){
             return Promise.resolve(undefined)
         }
-        return this.updateGame(game.game_uuid, game.game_id.toString())
+        return this.updateGame(game.game_uuid, game.game_id)
     }
 
     getFromDb(game_uuid: string): GameStats | undefined {
@@ -31,7 +31,7 @@ class GameStatsService {
         return new GameStats(cached)
     }
 
-    private updateGame(game_uuid: string, game_id: string): Promise<GameStats | undefined> {
+    private updateGame(game_uuid: string, game_id: number): Promise<GameStats | undefined> {
         return this.client.getGameStats(game_uuid, game_id).then(stats => {
             if (!stats || stats.recaps?.gameRecap == undefined || stats.recaps?.[0] == undefined) {
                 // incomplete stats, do not store, return existing
@@ -45,7 +45,7 @@ class GameStatsService {
                 return this.db.write(toWrite).then(e => stats)
             })
         }).catch(e => {
-            console.error('[SERVICE] Failed to update GameStats', game_uuid, e?.toString())
+            console.error('[SERVICE] GameStats Error:', e)
             return Promise.resolve(this.getFromDb(game_uuid))
         })
     }

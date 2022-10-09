@@ -54,7 +54,7 @@ class Service<T> {
          console.log('cache not expired', this.db.name)
          return Promise.resolve(wrapped.data)
       }).catch(e => {
-         console.error('[SERVICE] Failed to update', this.db.name, e?.toString())
+         console.error('[SERVICE] Failed to update', this.db.name, e)
          return this.db.read().then(e => e.data)
       })
    }
