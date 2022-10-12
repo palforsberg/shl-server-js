@@ -34,6 +34,7 @@ function setupLogger(config: Config) {
     console.error = (...e) => {
         const error = e.find(e => e instanceof Error)
         if (error) {
+            logger.error('Stack:')
             logger.error(error.stack)
         }
         return logger.error(e.join(' '))
@@ -41,6 +42,10 @@ function setupLogger(config: Config) {
 
     process.on('uncaughtException', e => {
         console.error('uncaughtException:', e)
+    })
+
+    process.on('unhandledRejection', (reason, promise) => {
+        console.error('unhandledRejection:', reason, promise)
     })
 }
 
