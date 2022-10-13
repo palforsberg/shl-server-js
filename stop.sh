@@ -1,5 +1,4 @@
 #!/bin/bash
 
-read pid < ./deployment/server.pid
-echo "Kill $pid"
-kill "$pid"
+./node_modules/forever/bin/forever stop ./dist/src/server.js
+echo "Stopped"

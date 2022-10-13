@@ -2,7 +2,6 @@
 
 ./stop.sh
 
-node ./dist/src/server.js './deployment/config.json' &
+./node_modules/forever/bin/forever start ./dist/src/server.js './deployment/config.json' 
 
-echo "Started $!"
-echo $! > deployment/server.pid
+echo "Started"
