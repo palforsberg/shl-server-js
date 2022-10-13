@@ -65,8 +65,10 @@ class SeasonService extends Service<Game[]> {
      * Approximate GameStatus given only information in Game
      */
     static getGameStatusForNonStats(g: Game): GameStatus {
-        if (new Date(g.start_date_time) < new Date()) {
-            // game have started
+        const twoHoursAgo = new Date()
+        twoHoursAgo.setHours(twoHoursAgo.getHours() - 2)
+        if (new Date(g.start_date_time) < twoHoursAgo) {
+            // game started two hours ago, surely finished
             return GameStatus.Finished
         }
         return GameStatus.Coming

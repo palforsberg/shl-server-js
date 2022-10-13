@@ -449,9 +449,9 @@ test('Test with gameStats.recaps being an array / undefined', async () => {
 })
 
 test('Test season game without gamestats', async () => {
-    // Given - Game started in past
+    // Given - Game started at least two hours ago
     let inputGame = getGame(2, 0)
-    inputGame.start_date_time = new Date(Date.now() - 20000)
+    inputGame.start_date_time = new Date(Date.now() - 2 * 60 * 60 * 1001)
     mockAxios(axios, [inputGame], undefined)
 
     // When
