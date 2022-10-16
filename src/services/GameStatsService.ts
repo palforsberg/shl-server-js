@@ -35,7 +35,7 @@ class GameStatsService {
         return this.client.getGameStats(game_uuid, game_id).then(stats => {
             if (!stats || stats.recaps?.gameRecap == undefined || stats.recaps?.[0] == undefined) {
                 // incomplete stats, do not store, return existing
-                console.log(`[GAME_STATS_SERVICE] incomplete stats received ${game_uuid} ${JSON.stringify(stats)}`)
+                console.log(`[GAME_STATS_SERVICE] incomplete stats received ${game_uuid}`)
                 return Promise.resolve(this.getFromDb(game_uuid))
             }
             return this.db.read().then(old => {

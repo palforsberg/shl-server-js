@@ -1,4 +1,9 @@
+import { Mutex } from "async-mutex"
+
 const fs = require('fs')
+
+
+const mutexes: Record<string, Mutex> = {}
 
 interface FileError {
    code: string
@@ -7,6 +12,7 @@ class Db<T> {
    in_mem?: T
    name: string
    defaultValue: T
+   mutex: Mutex
 
    constructor(name: string, defaultValue: T) {
       this.name = name
@@ -15,13 +21,21 @@ class Db<T> {
       this.write = this.write.bind(this)
       this.storeInMemory = this.storeInMemory.bind(this)
       this.handleError = this.handleError.bind(this)
+
+      this.mutex = mutexes[name]
+      if (!this.mutex) {
+         this.mutex = new Mutex()
+         mutexes[name] = this.mutex
+      }
    }
 
    write(data: T): Promise<T> {
       this.storeInMemory(data)
-      return fs.promises.writeFile(Db.getPath(this.name), JSON.stringify(data, null, 2))
-         .catch((e: FileError) => this.handleError(e, this.name))
-         .then((e: any) => data)
+      return this.mutex.runExclusive(() => 
+         fs.promises.writeFile(Db.getPath(this.name), JSON.stringify(data, null, 2))
+            .catch((e: FileError) => this.handleError(e, this.name))
+            .then((e: any) => data)
+      )
    }
    
    read(): Promise<T> {

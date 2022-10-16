@@ -57,20 +57,22 @@ class GameLoop {
         const season = await this.seasonService.update()
         const liveGames = SeasonService.getLiveGames(season || [])
         const users = await this.userService.db.read() || []
-        
-        return Promise.all(liveGames.map(async lg => {
+
+        const result: [GameStats | undefined, GameStats | undefined][] = []
+        for (const lg of liveGames) {
             const stats = await this.updateStats(lg)
             const events = GameComparer.compare(stats)
-            await Promise.all(events.map(async event => {
+            for (const event of events) {
                 if (this.eventService.isDuplicateEvent(event)) {
                     console.log(`[LOOP] duplicate event ${event.toString(false)}`)
-                    return
+                    continue
                 }                
                 await this.eventService.store(lg.game_uuid, event, stats[0], stats[1])
                 await this.notifier.notify(event, users)
-            }))
-            return stats
-        }))
+            }
+            result.push(stats)
+        }
+        return result
     }
     
     private updateStats(game: Game): Promise<[GameStats | undefined, GameStats | undefined]> {

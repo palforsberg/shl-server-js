@@ -1,5 +1,5 @@
 
-import { randomInt, randomUUID } from 'crypto'
+import { randomInt } from 'crypto'
 import express, { Response, Request } from 'express'
 import { Game } from '../models/Game'
 import { GameStats, GameStatsIf, PeriodStats, Player } from '../models/GameStats'
@@ -37,8 +37,7 @@ app.get('/seasons/:season/games.json', (req: Request, res: Response) => {
 })
 app.get('/gamecenter/:game_uuid/statistics/:game_id.json', (req: Request, res: Response) => {
     const stats = gameStats[req.params.game_uuid]
-
-    if (rand() % 4 == 0) {
+    if (rand() % 10 == 0) {
         // return bad stats
         console.log('luring')
         return res.send(JSON.stringify({ gameState: '', game_uuid: req.params.game_uuid, recaps: {}} as GameStatsIf))    
