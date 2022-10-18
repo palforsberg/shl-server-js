@@ -13,7 +13,10 @@ import { RestService } from './services/RestService'
 import express from 'express'
 import { EventService } from './services/EventService'
 import { Notifier } from './Notifier'
-
+import { ShlSocket } from './ShlSocket'
+import { SocketMiddleware } from './services/SocketMiddleware'
+import { WsEventService } from './services/WsEventService'
+import { FileAppend } from './services/FileAppend'
 
 const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
 require('events').EventEmitter.defaultMaxListeners = config.max_listeners || 100
@@ -28,7 +31,6 @@ const shl = new SHL(config)
 const currentSeason = 2022
 const nrSeasons = 4
 
-
 const teamsService = new TeamsService()
 const userService = new UserService()
 const standingsService = new StandingService(currentSeason, nrSeasons, shl)
@@ -42,9 +44,22 @@ const seasonServices = {
 }
 
 const eventService = new EventService()
+const wsEventService = new WsEventService()
 
 const notifier = new Notifier(config)
 notifier.setOnError(userService.handleNotificationError)
+
+const socket = new ShlSocket(config.shl_socket_path)
+const middleware = new SocketMiddleware(seasonServices[currentSeason], socket, wsEventService)
+
+FileAppend.enabled = config.production
+
+socket.onEvent(e => {
+   return middleware.onEvent(e)
+})
+socket.onGameReport(g => {
+   return middleware.onGame(g)
+})
 
 const gameLoop = new GameLoop(
    config,
@@ -53,7 +68,8 @@ const gameLoop = new GameLoop(
    statsService,
    standingsService,
    eventService,
-   notifier)
+   notifier,
+   socket)
 
 const app = express().use(express.json())
 
@@ -64,7 +80,7 @@ const restService = new RestService(
    userService,
    statsService,
    eventService,
-   shl,
+   wsEventService,
 )
 
 restService.setupRoutes()
@@ -75,7 +91,9 @@ Object.entries(standingsService.seasons).forEach(e => e[1].update())
 
 try {
    // Populate stats cache
-   statsService.db.read().then(() => gameLoop.loop())
+   statsService.db.read()
+      .then(() => eventService.db.read())
+      .then(() => gameLoop.loop())
 } catch (e) {
    console.log('[SERVER] Loop threw ', e)
 }

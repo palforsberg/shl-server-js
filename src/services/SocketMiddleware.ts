@@ -1,0 +1,204 @@
+import { EventPlayer, EventType, GameInfo, GoalInfo, PenaltyInfo, PeriodInfo } from '../models/GameEvent'
+import { WsEventService, WsGameEvent } from '../services/WsEventService'
+import { ShlSocket, WsEvent, WsGame } from '../ShlSocket'
+import { SeasonService } from './SeasonService'
+
+class SocketMiddleware {
+    socket: ShlSocket
+    season: SeasonService
+    wsEventService: WsEventService
+    joinedGameIds: Record<number, WsGame>
+
+    constructor(
+        season: SeasonService, 
+        socket: ShlSocket,
+        wsEventService: WsEventService) {
+        this.socket = socket
+        this.season = season
+        this.wsEventService = wsEventService
+        this.joinedGameIds = {}        
+
+        this.onGame = this.onGame.bind(this)
+        this.onEvent = this.onEvent.bind(this)
+        this.mapEvent = this.mapEvent.bind(this)
+        this.mapPenaltyEvent = this.mapPenaltyEvent.bind(this)
+        this.mapPenaltyEvent = this.mapPenaltyEvent.bind(this)
+        this.mapPeriodEvent = this.mapPeriodEvent.bind(this)
+        this.getGameInfoFromEvent = this.getGameInfoFromEvent.bind(this)
+    }
+
+    async onGame(m: WsGame) {
+        const gameUuid = this.season.gameIdToGameUuid[m.gameId]
+        if (gameUuid == undefined) {
+            console.log(`[MIDDLE] Unknown game ${m.homeTeamCode} - ${m.awayTeamCode}`)
+            return
+        }
+        console.log(`[MIDDLE] REPORT - ${m.statusString} ${m.homeTeamCode} ${m.homeScore} - ${m.awayScore} ${m.awayTeamCode} ${m.period} ${m.gameState}`)
+        if (!this.joinedGameIds[m.gameId]) {
+            this.socket.join(m.gameId)
+        }
+        this.joinedGameIds[m.gameId] = m
+        // update live_stats
+    }
+
+    async onEvent(m: WsEvent): Promise<WsGameEvent | undefined> {
+        const gameUuid = this.season.gameIdToGameUuid[m.gameId]
+        if (gameUuid == undefined) {
+            console.log(`[MIDDLE] Unknown game event ${m.team} - ${m.gameId}`)
+            return undefined
+        }
+        if (this.joinedGameIds[m.gameId] == undefined) {
+            console.log(`[MIDDLE] Not joined game event ${JSON.stringify(m)}`)
+            return undefined
+        }
+        console.log(`[MIDDLE] EVENT - ${m.class} ${m.gametime} ${m.team} ${m.description} [${m.eventId} ${m.revision}]`)
+
+        const wsEvent = this.mapEvent(gameUuid, m)
+        if (!wsEvent) return undefined
+    
+        const isNewEvent = await this.wsEventService.store(wsEvent)
+        if (isNewEvent && wsEvent.shouldNotify()) {
+            // send notification
+        }
+
+        // update live_stats
+        return wsEvent
+    }
+    
+    private mapEvent(gameUuid: string, m: WsEvent): WsGameEvent | undefined {
+        switch (m.class) {
+            case 'Goal':
+                return this.mapGoalEvent(gameUuid, m as WsGoalEvent)
+            case 'Period':
+                return this.mapPeriodEvent(gameUuid, m as WsPeriodEvent)
+            case 'Penalty':
+                return this.mapPenaltyEvent(gameUuid, m as WsPenaltyEvent)
+            case 'Shot':
+            case 'ShotBlocked':
+            case 'ShotIron':
+            case 'ShotWide':
+            case 'Timeout':
+            case 'GoolkeeperEvent':
+            default:
+                break;
+        }
+
+        return undefined
+    }
+
+    private mapGoalEvent(gameUuid: string, event: WsGoalEvent): WsGameEvent {
+        const parts = event.extra.scorerLong.split(' ')
+        const player: EventPlayer = {
+            jersey: parseInt(parts[0]),
+            firstName: parts[1],
+            familyName: event.extra.scorerLong.replace(`${parts[0]} ${parts[1]} `, ''),
+        }
+        const info: GoalInfo = {
+            ...this.getGameInfoFromEvent(gameUuid, event),
+            homeResult: parseInt(event.extra.homeForward[0]),
+            awayResult: parseInt(event.extra.homeAgainst[0]),
+            periodFormatted: event.period + '',
+            team: event.team,
+            player,
+            isPowerPlay: event.extra.teamAdvantage.startsWith('PP'),
+            teamAdvantage: event.extra.teamAdvantage,
+        }
+        return new WsGameEvent(EventType.Goal, info, event)
+    }
+
+    private mapPenaltyEvent(gameUuid: string, event: WsPenaltyEvent): WsGameEvent | undefined {
+        if (event.description == 'Penalty shot') {
+            return undefined
+        }
+        let reason = event.description
+        let penaltyLong: string | undefined = undefined
+        let player: EventPlayer | undefined = undefined
+
+        if (event.description.includes(' utvisas ')) {
+            const regex = new RegExp(/^(\d*) (.) (.*) utvisas (.*), (.*)$/, 'g')
+            const parts = regex.exec(event.description) ?? []
+            player = {
+                jersey: parseInt(parts[1]),
+                firstName: parts[2],
+                familyName: parts[3],
+            }
+            penaltyLong = parts[4]
+            reason = parts[5]
+        }
+
+        const info: PenaltyInfo = {
+            ...this.getGameInfoFromEvent(gameUuid, event),
+            team: event.team,
+            player,
+            reason,
+            penaltyLong,
+        }
+        return new WsGameEvent(EventType.Penalty, info, event)
+    }
+
+    private mapPeriodEvent(gameUuid: string, event: WsPeriodEvent): WsGameEvent | undefined {
+        if (event.period == 0) {
+            const info: GameInfo = this.getGameInfoFromEvent(gameUuid, event)
+            if (event.extra.gameStatus == 'Ongoing') {
+                return new WsGameEvent(EventType.GameStart, info, event)
+            } else if (event.extra.gameStatus == 'GameEnded') {
+                return new WsGameEvent(EventType.GameEnd, info, event)
+            } // Intermission
+        } else {
+            const info: PeriodInfo = this.getGameInfoFromEvent(gameUuid, event)
+            if (event.extra.gameStatus == 'Playing') {
+                return new WsGameEvent(EventType.PeriodStart, info, event)
+            } else if (event.extra.gameStatus == 'Finished') {
+                return new WsGameEvent(EventType.PeriodEnd, info, event)
+            }
+        }
+        return undefined
+    }
+
+    private getGameInfoFromEvent(gameUuid: string, event: WsEvent): GameInfo {
+        const wsGame = this.joinedGameIds[event.gameId]
+        return {
+            homeTeamId: wsGame.homeTeamCode,
+            awayTeamId: wsGame.awayTeamCode,
+            homeResult: parseInt(wsGame.homeScore),
+            awayResult: parseInt(wsGame.awayScore),
+            periodNumber: event.period,
+            game_uuid: gameUuid,
+        }
+    }
+}
+
+
+// {"eventId":44,"revision":2,"hash":"16029-44","channel":"All","gametime":"06:53","timePeriod":413,"gameId":16029,"realTime":"20221001161314","time":"1664633925.1865","period":2,"class":"Goal","type":"1-1","description":"1-1 (PP1) 20 J Connolly (2)","extra":{"pop":"POP: 14, 20, 23, 34, 47, 60","nep":"NEP: 4, 7, 26, 33, 37","assist":"14 J Berglund (1)","homeForward":["1"],"homeAgainst":["1"],"teamAdvantage":"PP1","scorerLong":"20 Jack Connolly","assistOneLong":"14 Jonas Berglund (1)"},"action":"message","source":"Parser","sourceport":"6600","team":"LHF","messagetype":"all","actiontype":"new","teamId":"1a71-1a71gTHKh","location":{"x":30,"y":-48},"status":"update","queue":"parser"}
+interface WsGoalEvent extends WsEvent {
+    team: string,
+    location: { x: number, y: number},
+    extra: {
+        scorerLong: string,
+        teamAdvantage: string,
+        homeAgainst: [string],
+        homeForward: [string],
+    }
+}
+
+// {"eventId":42,"revision":1,"hash":"16029-42","channel":16029,"gametime":"05:29","timePeriod":329,"gameId":16029,"realTime":"20221001161123","time":"1664633513.7004","period":2,"class":"Penalty","type":"Utvisning","description":"15 D Sexton utvisas 2 min, Tripping","extra":[],"action":"message","source":"Parser","sourceport":"6600","team":"VLH","messagetype":"all","actiontype":"new","teamId":"fe02-fe02mf1FN","status":"new","queue":"parser"}
+interface WsPenaltyEvent extends WsEvent {
+    team: string,
+}
+
+// {"eventId":100002,"revision":1,"hash":"16029-100002","channel":16029,"gametime":"00:00","timePeriod":0,"gameId":16029,"realTime":"20221001160348","time":"1664633062.1117","period":2,"class":"Period","type":"Period","description":"Period 2 startade","extra":{"gameStatus":"Playing"},"action":"message","source":"Parser","sourceport":"6600","team":["LHF"],"messagetype":"all","actiontype":"new","teamId":"1a71-1a71gTHKh","status":"new","queue":"parser"}
+// {"eventId":200002,"revision":1,"hash":"16029-200002","channel":16029,"gametime":"20:00","timePeriod":1200,"gameId":16029,"realTime":"20221001160348","time":"1664634941.2949","period":2,"class":"Period","type":"Period","description":"Period 2 avslutad","extra":{"gameStatus":"Finished"},"action":"message","source":"Parser","sourceport":"6600","team":["LHF"],"messagetype":"all","actiontype":"new","teamId":"1a71-1a71gTHKh","status":"new","queue":"parser"}
+// Period != 0 -> Period (Playing + Finished)
+// period == 0 -> game (NotStarted + Ongoing + GameEnded)
+interface WsPeriodEvent extends WsEvent {
+    extra: {
+        gameStatus: string,
+    },
+}
+
+export {
+    SocketMiddleware,
+    WsPeriodEvent,
+    WsPenaltyEvent,
+    WsGoalEvent,
+}

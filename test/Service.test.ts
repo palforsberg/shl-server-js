@@ -6,7 +6,6 @@ fs.promises = {
     writeFile: () => Promise.resolve({}),
 }
 
-
 const updateService = () => Promise.resolve({text: 'updated'})
 const service = new Service('test-service', { text: 'hejsan'}, updateService, 10)
 var now = new Date()

@@ -1,4 +1,4 @@
-import { randomInt, randomUUID } from "crypto"
+import { randomInt } from "crypto"
 import { TeamsService } from "../services/TeamsService"
 import { GameStats, Player } from "./GameStats"
 
@@ -9,6 +9,12 @@ enum EventType {
     Penalty = 'Penalty',
     PeriodStart = 'PeriodStart',
     PeriodEnd = 'PeriodEnd',
+}
+
+interface EventPlayer {
+    firstName: string
+    familyName: string
+    jersey: number
 }
 
 interface GameInfo {
@@ -23,14 +29,17 @@ interface GoalInfo extends GameInfo {
     periodFormatted: string,
     isPowerPlay: boolean,
     team: string,
-    player?: Player
+    player?: EventPlayer
+    teamAdvantage: string
 }
 interface PeriodInfo extends GameInfo {
 }
 interface PenaltyInfo extends GameInfo {
-    penalty: number,
+    penalty?: number,
+    penaltyLong?: string,
+    reason?: string,
     team: string,
-    player?: Player,
+    player?: EventPlayer,
 }
 
 class GameEvent {
@@ -135,7 +144,7 @@ class GameEvent {
         }
     }
 
-    private getScoreString(): string {
+    protected getScoreString(): string {
         const ht = this.info.homeTeamId
         const hg = this.info.homeResult
         const at = this.info.awayTeamId
@@ -158,7 +167,8 @@ class GameEvent {
             periodFormatted: game.getCurrentPeriodFormatted(),
             team,
             player,
-            isPowerPlay 
+            isPowerPlay,
+            teamAdvantage: isPowerPlay ? 'PP' : '',
         }
         return new GameEvent(EventType.Goal, info)
     }
@@ -204,4 +214,5 @@ export {
     GoalInfo,
     PenaltyInfo,
     PeriodInfo,
+    EventPlayer,
 }

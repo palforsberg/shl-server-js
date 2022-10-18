@@ -102,6 +102,7 @@ function getConfig(): Config {
         port: 8080,
         shl_path: "http://localhost:8000",
         shl_stats_path: "http://localhost:8000",
+        shl_socket_path: "ws://localhost:8090",
         send_notifications: true,
     }
 }

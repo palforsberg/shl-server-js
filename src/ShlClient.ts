@@ -132,9 +132,9 @@ class SHL {
       const timeSinceLastCall = new Date().getTime() - this.lastCall.getTime()
       const timeDiff = time - timeSinceLastCall
       if (timeDiff > 0) {
-         console.log('[SHL CLIENT] wait for ' + timeDiff + ' ms')
+         // console.log('[SHL CLIENT] wait for ' + timeDiff + ' ms')
          await new Promise(r => setTimeout(r, timeDiff))
-         console.log('[SHL CLIENT] waited for ' + timeDiff + ' ms')
+         // console.log('[SHL CLIENT] waited for ' + timeDiff + ' ms')
       }
    }
 

@@ -6,7 +6,8 @@ import { TeamsService } from "./TeamsService";
 import { UserService } from "./UserService";
 import { GameStats } from "../models/GameStats";
 import { EventService } from "./EventService";
-import { SHL } from "../ShlClient";
+import { WsEventService } from "./WsEventService";
+const fs = require('fs');
 
 class RestService {
     private seasonServices: Record<number, SeasonService>
@@ -14,7 +15,7 @@ class RestService {
     private users: UserService
     private statsService: GameStatsService
     private eventService: EventService
-    private shlClient: SHL
+    private wsEventService: WsEventService
     private app: any
 
     constructor(
@@ -24,7 +25,7 @@ class RestService {
         users: UserService,
         statsService: GameStatsService,
         eventService: EventService,
-        shlClient: SHL,
+        wsEventService: WsEventService,
     ) {
         this.app = app
         this.seasonServices = seasonServices
@@ -32,7 +33,7 @@ class RestService {
         this.users = users
         this.statsService = statsService
         this.eventService = eventService
-        this.shlClient = shlClient
+        this.wsEventService = wsEventService
     }
 
     startListen(port: number) {
@@ -96,8 +97,8 @@ class RestService {
             return res.send(JSON.stringify(TeamsService.getTeams()))
          })
 
-         this.app.get('/events/:game_uuid', (req: any, res: any) => {
-            return this.eventService.getEvents(req.params.game_uuid)
+         this.app.get('/ws-events/:game_uuid', (req: any, res: any) => {
+            return this.wsEventService.read(req.params.game_uuid)
                .then(events => res.send(JSON.stringify(events)))
          })
     }

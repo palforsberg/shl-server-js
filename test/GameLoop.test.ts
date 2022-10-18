@@ -9,6 +9,7 @@ import { Notifier } from "../src/Notifier";
 import { Service } from "../src/Service";
 import { EventService } from "../src/services/EventService";
 import { GameStatsService } from "../src/services/GameStatsService";
+import { ShlSocket } from "../src/ShlSocket";
 import { getConfig, getGame, getGameStats, getStanding, mockAxios, mockAxiosFn } from "./utils";
 
 const GameLoop = require('../src/GameLoop').GameLoop
@@ -54,6 +55,7 @@ const seasonService = new SeasonService(season, 0, shl, gameStatsService)
 const standingsService = new StandingService(season, 4, shl)
 const eventService = new EventService()
 const notifier = new Notifier(config)
+const socket = new ShlSocket(config.shl_socket_path)
 
 const looper = new GameLoop(
     config,
@@ -62,7 +64,8 @@ const looper = new GameLoop(
     gameStatsService,
     standingsService,
     eventService,
-    notifier)
+    notifier,
+    socket)
 
 jest.setTimeout(20_000_000)
 
@@ -77,6 +80,8 @@ beforeEach(() => {
     // @ts-ignore
     gameStatsService.db.write({})
     eventService.db.write({})
+    socket.open = jest.fn()
+    socket.close = jest.fn()
 })
 
 test("Notify on started game", async () => {
@@ -479,28 +484,70 @@ test('Test season game without gamestats', async () => {
 })
 
 test('Test event stored given notifications', async () => {
-        // Given - SHL returns a live game and some stats
-        await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
-        const preStats = new GameStats(getGameStats(2, 0))
-        mockAxios(axios, [getGame(2, 0)], preStats)
-    
-        // When - Loop has run with game
-        await looper.gameJob()
-        eventService.db.write({})
-    
-        // When - Loop runs with score change
-        const postStats = getGameStats(3, 0)
-        postStats.playersByTeam!['LHF'].players[0].g = 1
-        mockAxios(axios, [getGame(3, 0)], postStats)
-        await looper.gameJob()
-    
-        // Then - GameEvent should've been stored
-        const events = await eventService.getEvents(getGame().game_uuid)
-        expect(events).toBeDefined()
-        expect(events.length).toBe(1)
-        const event = events[0]
-        preStats.timestamp = event.pre?.timestamp
-        preStats.playersByTeam = undefined
-        expect(JSON.stringify(event.pre)).toEqual(JSON.stringify(preStats))
-        expect(JSON.stringify(event.info)).toEqual(JSON.stringify(event.info))
+    // Given - SHL returns a live game and some stats
+    await userService.addUser({ id: 'user_1', teams: ['LHF'], apn_token: 'apn_token'})
+    const preStats = new GameStats(getGameStats(2, 0))
+    mockAxios(axios, [getGame(2, 0)], preStats)
+
+    // When - Loop has run with game
+    await looper.gameJob()
+    eventService.db.write({})
+
+    // When - Loop runs with score change
+    const postStats = getGameStats(3, 0)
+    postStats.playersByTeam!['LHF'].players[0].g = 1
+    mockAxios(axios, [getGame(3, 0)], postStats)
+    await looper.gameJob()
+
+    // Then - GameEvent should've been stored
+    const events = await eventService.getEvents(getGame().game_uuid)
+    expect(events).toBeDefined()
+    expect(events.length).toBe(1)
+    const event = events[0]
+    expect(JSON.stringify(event.info)).toEqual(JSON.stringify(event.info))
+})
+
+test('Start socket when live games', async () => {
+    // Given - Live game
+    const preStats = new GameStats(getGameStats(2, 0))
+    const game = getGame(2, 0)
+    game.start_date_time = new Date()
+    game.start_date_time.setMinutes(game.start_date_time.getMinutes() + 14)
+    mockAxios(axios, [game], preStats)
+
+    // When - Loop has run with game
+    await looper.gameJob()
+
+    // Then - socket should be opened
+    expect(socket.open).toBeCalled()
+    expect(socket.close).toBeCalledTimes(0)
+})
+
+test('Stop socket when no live games within 15 minutes', async () => {
+    // Given - Live game
+    const preStats = new GameStats(getGameStats(2, 0))
+    const game = getGame(2, 0)
+    game.start_date_time = new Date()
+    game.start_date_time.setMinutes(game.start_date_time.getMinutes() + 16)
+    mockAxios(axios, [game], preStats)
+
+    // When - Loop has run with game
+    await looper.gameJob()
+
+    // Then - socket should be opened
+    expect(socket.open).toBeCalledTimes(0)
+    expect(socket.close).toBeCalled()
+})
+
+test('Stop socket when no live games', async () => {
+    // Given - No live game
+    const preStats = new GameStats(getGameStats(2, 0))
+    mockAxios(axios, [getGame(2, 0, true)], preStats)
+
+    // When - Loop has run with game
+    await looper.gameJob()
+
+    // Then - socket should be closed
+    expect(socket.open).toBeCalledTimes(0)
+    expect(socket.close).toBeCalled()
 })

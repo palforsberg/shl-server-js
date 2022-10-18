@@ -17,6 +17,7 @@ import { getConfig, getGame, getGameStats, getStanding, mockAxios } from "./util
 import { GameStats } from '../src/models/GameStats';
 import { GameStatus } from '../src/models/Game';
 import { EventService } from '../src/services/EventService';
+import { WsEventService } from '../src/services/WsEventService';
 
 jest.mock("fs")
 jest.mock("axios")
@@ -44,6 +45,7 @@ const seasonServices = {
 const standingsService = new StandingService(season, 4, shl)
 const teamsService = new TeamsService()
 const eventService = new EventService()
+const wsEventService = new WsEventService()
 
 const getServices: Record<string, (a: any, b: any) => void> = {}
 const postServices: Record<string, (a: any, b: any) => void> = {}
@@ -61,7 +63,7 @@ const restService = new RestService(
     userService,
     gameStatsService,
     eventService,
-    shl,
+    wsEventService,
 )
 
 restService.setupRoutes()

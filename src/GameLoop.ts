@@ -8,6 +8,7 @@ import { UserService } from "./services/UserService";
 import { GameStatsService } from "./services/GameStatsService";
 import { GameStats } from "./models/GameStats";
 import { EventService } from "./services/EventService";
+import { ShlSocket } from "./ShlSocket";
 
 class GameLoop {
     private seasonService: SeasonService
@@ -16,6 +17,7 @@ class GameLoop {
     private gameStatsService: GameStatsService
     private notifier: Notifier
     private eventService: EventService
+    private socket: ShlSocket
 
     constructor(
         config: Config,
@@ -24,7 +26,8 @@ class GameLoop {
         gameStatsService: GameStatsService,
         currentStanding: StandingService,
         eventService: EventService,
-        notifier: Notifier) {
+        notifier: Notifier,
+        socket: ShlSocket) {
 
          this.loop = this.loop.bind(this)
          this.gameJob = this.gameJob.bind(this)
@@ -34,6 +37,7 @@ class GameLoop {
          this.gameStatsService = gameStatsService
          this.eventService = eventService
          this.notifier = notifier
+         this.socket = socket
     }
 
     loop() {
@@ -56,7 +60,14 @@ class GameLoop {
         await this.standingsService.getCurrentSeason().update()
         const season = await this.seasonService.update()
         const liveGames = SeasonService.getLiveGames(season || [])
+        const gamesWithin15Min = SeasonService.getLiveGames(season || [], 15)
         const users = await this.userService.db.read() || []
+
+        if (gamesWithin15Min.length > 0) {
+            await this.socket.open()
+        } else {
+            this.socket.close()
+        }
 
         const result: [GameStats | undefined, GameStats | undefined][] = []
         for (const lg of liveGames) {
@@ -67,7 +78,7 @@ class GameLoop {
                     console.log(`[LOOP] duplicate event ${event.toString(false)}`)
                     continue
                 }                
-                await this.eventService.store(lg.game_uuid, event, stats[0], stats[1])
+                await this.eventService.store(lg.game_uuid, event)
                 await this.notifier.notify(event, users)
             }
             result.push(stats)

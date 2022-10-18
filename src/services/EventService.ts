@@ -1,12 +1,9 @@
 import { Db } from "../Db";
 import { GameEvent } from "../models/GameEvent";
-import { GameEventDebug } from "../models/GameEventDebug";
-import { GameStats } from "../models/GameStats";
-
 
 class EventService {
 
-    db: Db<Record<string, GameEventDebug[]>>
+    db: Db<Record<string, GameEvent[]>>
 
     constructor() {
         this.db = new Db('events', {})
@@ -16,16 +13,16 @@ class EventService {
         this.isDuplicateEvent = this.isDuplicateEvent.bind(this)
     }
  
-    store(game_uuid: string, event: GameEvent, pre: GameStats | undefined, post: GameStats | undefined): Promise<Record<string, GameEventDebug[]>> {
+    store(game_uuid: string, event: GameEvent): Promise<Record<string, GameEvent[]>> {
         return this.db.read().then(events => {
             const gameEvents = events[game_uuid] ?? []
-            gameEvents.push(new GameEventDebug(event, pre, post))
+            gameEvents.push(event)
             events[game_uuid] = gameEvents
             return this.db.write(events)
         })
     }
 
-    getEvents(game_uuid: string): Promise<GameEventDebug[]> {
+    getEvents(game_uuid: string): Promise<GameEvent[]> {
         return this.db.read().then(events => events[game_uuid] ?? [])
     }
 

@@ -37,6 +37,7 @@ test('finds home team scored', () => {
         periodFormatted: newGames.getCurrentPeriodFormatted(),
         player: undefined,
         team: newGames.getHomeTeamId(),
+        teamAdvantage: '',
         isPowerPlay: false } as GoalInfo)
 });
 

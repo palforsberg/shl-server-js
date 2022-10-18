@@ -15,6 +15,7 @@ interface Config {
 
     shl_path: string,
     shl_stats_path: string,
+    shl_socket_path: string,
 }
 
 export {
