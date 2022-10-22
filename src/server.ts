@@ -92,7 +92,8 @@ Object.entries(standingsService.seasons).forEach(e => e[1].update())
 
 try {
    // Populate caches
-   statsService.db.read()
+   seasonServices[currentSeason].populateGameIdCache()
+      .then(() => statsService.db.read())
       .then(() => eventService.db.read())
       .then(() => gameLoop.loop())
 } catch (e) {

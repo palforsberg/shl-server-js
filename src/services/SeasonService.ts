@@ -18,15 +18,23 @@ class SeasonService extends Service<Game[]> {
         this.gameIdToGameUuid = {}
         this.service = this.seasonService.bind(this)
         this.updateFromStats = this.updateFromStats.bind(this)
+        this.populateGameIdCache = this.populateGameIdCache.bind(this)
     }
 
     seasonService(): Promise<Game[]> {
         // get all games for season
         return this.shl.getGames(this.season.toString()).then(games => {
             return games.map(g => {
-                this.gameIdToGameUuid[g.game_id] = g.game_uuid
                 return SeasonService.populate(g, this.gameStats.getFromCache(g.game_uuid))
             })
+        })
+    }
+
+    async populateGameIdCache() {
+        const db = await this.getDb().read()
+        const games = db?.data ?? []
+        games.forEach(g => {
+            this.gameIdToGameUuid[g.game_id] = g.game_uuid
         })
     }
 
