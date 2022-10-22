@@ -51,7 +51,7 @@ class Service<T> {
          if (this.hasExpired(wrapped.timestamp)) { // stored data has expired, need to update first
             return this.service().then(this.write)
          }
-         console.log('cache not expired', this.db.name)
+         console.debug('cache not expired', this.db.name)
          return Promise.resolve(wrapped.data)
       }).catch(e => {
          console.error('[SERVICE] Failed to update', this.db.name, e)

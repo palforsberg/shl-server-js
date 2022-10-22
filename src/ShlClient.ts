@@ -11,7 +11,7 @@ const MIN_TIME_BETWEEN = 3 * 1000;
 
 axios.interceptors.request.use((request: Req) => {
    times[request.url] = new Date()
-   console.log('[EXTERNAL]', request.method.toUpperCase(), request.url)
+   console.debug('[EXTERNAL]', request.method.toUpperCase(), request.url)
    return request
 })
 
@@ -132,9 +132,9 @@ class SHL {
       const timeSinceLastCall = new Date().getTime() - this.lastCall.getTime()
       const timeDiff = time - timeSinceLastCall
       if (timeDiff > 0) {
-         // console.log('[SHL CLIENT] wait for ' + timeDiff + ' ms')
+         console.debug('[SHL CLIENT] wait for ' + timeDiff + ' ms')
          await new Promise(r => setTimeout(r, timeDiff))
-         // console.log('[SHL CLIENT] waited for ' + timeDiff + ' ms')
+         console.debug('[SHL CLIENT] waited for ' + timeDiff + ' ms')
       }
    }
 

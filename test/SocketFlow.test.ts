@@ -1,9 +1,10 @@
 const fs = require('fs')
-import { EventType, GoalInfo, PenaltyInfo } from "../src/models/GameEvent"
+import { EventType, PeriodInfo } from "../src/models/GameEvent"
+import { GameReportService } from "../src/services/GameReportService"
 import { SeasonService } from "../src/services/SeasonService"
-import { SocketMiddleware, WsGoalEvent, WsPenaltyEvent, WsPeriodEvent } from "../src/services/SocketMiddleware"
-import { WsEventService } from "../src/services/WsEventService"
-import { ShlSocket, WsEvent, WsGame } from "../src/ShlSocket"
+import { SocketMiddleware } from "../src/services/SocketMiddleware"
+import { WsEventService, WsGameEvent } from "../src/services/WsEventService"
+import { ShlSocket, WsGame } from "../src/ShlSocket"
 
 jest.mock("fs")
 jest.mock('ws')
@@ -22,13 +23,14 @@ class MockedSeasonService extends SeasonService {
     }
 }
 const seasonService = new MockedSeasonService()
+const liveStatsService = new GameReportService()
+const wsEventService = new WsEventService()
 
 jest.mock('../src/services/SeasonService')
 const socket = new ShlSocket('hejsan')
 socket.join = jest.fn()
 let middleware: SocketMiddleware
 
-const wsEventService = new WsEventService()
 socket.onEvent(e => {
     return middleware.onEvent(e)
 })
@@ -55,7 +57,7 @@ jsonFeed
     })
 
 beforeEach(() => {
-    middleware = new SocketMiddleware(seasonService, socket, wsEventService)
+    middleware = new SocketMiddleware(seasonService, socket, wsEventService, liveStatsService)
     socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})
@@ -65,15 +67,32 @@ test('Run feed for complete day', async () => {
     // Given
 
     // When - Push all events to socket
-    rawFeed.forEach(async e => {
+    for (const e of rawFeed) {
         await socket.onMessage(e)
-    })
+    }
 
     // Then
     expect(socket.join).toBeCalledTimes(Object.keys(gameReportGames).length)
 
+    // Should have events for all 7 games
+    const eventsForGames = await wsEventService.db.read()
+    expect(Object.values(eventsForGames).length).toBe(7)
+
+    // Should have all events for a single game
     const events = await wsEventService.read(Object.values(seasonService.gameIdToGameUuid)[0])
-    // expect(events[0].type).toBe(EventType.GameStart)
-    // expect(events[17].type).toBe(EventType.PeriodEnd)
-    expect(events.length).toBe(18)
+    expect(events.length).toBe(20)
+    expect(events[0].type).toBe(EventType.GameStart)
+    expect(events[19].type).toBe(EventType.PeriodEnd)
+
+    verifyContains(events, e => e.type == EventType.PeriodStart && (e.info as PeriodInfo).periodNumber == 1)
+    verifyContains(events, e => e.type == EventType.PeriodEnd && (e.info as PeriodInfo).periodNumber == 1)
+    verifyContains(events, e => e.type == EventType.PeriodStart && (e.info as PeriodInfo).periodNumber == 2)
+    verifyContains(events, e => e.type == EventType.PeriodEnd && (e.info as PeriodInfo).periodNumber == 2)
+    verifyContains(events, e => e.type == EventType.PeriodStart && (e.info as PeriodInfo).periodNumber == 3)
+    verifyContains(events, e => e.type == EventType.PeriodEnd && (e.info as PeriodInfo).periodNumber == 3)
 })
+
+function verifyContains(events: WsGameEvent[], predicate: (arg0: WsGameEvent) => Boolean, numberEvents = 1) {
+    const nrMatching = events.filter(predicate).length
+    expect(nrMatching).toBe(numberEvents)
+}

@@ -17,7 +17,9 @@ import { getConfig, getGame, getGameStats, getStanding, mockAxios } from "./util
 import { GameStats } from '../src/models/GameStats';
 import { GameStatus } from '../src/models/Game';
 import { EventService } from '../src/services/EventService';
-import { WsEventService } from '../src/services/WsEventService';
+import { WsEventService, WsGameEvent } from '../src/services/WsEventService';
+import { GameReportService } from '../src/services/GameReportService';
+import { EventType, GameEvent } from '../src/models/GameEvent';
 
 jest.mock("fs")
 jest.mock("axios")
@@ -46,6 +48,7 @@ const standingsService = new StandingService(season, 4, shl)
 const teamsService = new TeamsService()
 const eventService = new EventService()
 const wsEventService = new WsEventService()
+const reportService = new GameReportService()
 
 const getServices: Record<string, (a: any, b: any) => void> = {}
 const postServices: Record<string, (a: any, b: any) => void> = {}
@@ -64,6 +67,7 @@ const restService = new RestService(
     gameStatsService,
     eventService,
     wsEventService,
+    reportService,
 )
 
 restService.setupRoutes()
@@ -86,8 +90,8 @@ test('Get season', async () => {
     await getServices['/games/:season'](req, res)
 
     // Then
-    expect(res.send).toHaveBeenCalledTimes(1)
-    expect(res.body).toEqual(JSON.stringify(game))
+    expect(res.json).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(res.body)).toEqual(JSON.stringify(game))
 })
 
 test('Get season with non-numeric param', async () => {
@@ -127,8 +131,8 @@ test('Get standings', async () => {
     await getServices['/standings/:season'](req, res)
 
     // Then
-    expect(res.send).toHaveBeenCalledTimes(1)
-    expect(res.body).toEqual(JSON.stringify(standings))
+    expect(res.json).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(res.body)).toEqual(JSON.stringify(standings))
 })
 
 test('Get standings 404', async () => {
@@ -158,8 +162,8 @@ test('Get empty standings', async () => {
     await getServices['/standings/:season'](req, res)
 
     // Then - should get all home_teams from the game-schedule and return a standing for them
-    expect(res.send).toHaveBeenCalledTimes(1)
-    const body = JSON.parse(res.body)
+    expect(res.json).toHaveBeenCalledTimes(1)
+    const body = res.body
     expect(body).toEqual([getStanding('LHF', 0, 0, 0, 0)])
 })
 
@@ -170,28 +174,34 @@ test('Get teams', async () => {
     await getServices['/teams'](undefined, res)
 
     // Then
-    expect(res.send).toHaveBeenCalledTimes(1)
+    expect(res.json).toHaveBeenCalledTimes(1)
 })
 
 test('Get game stats', async () => {
     // Given
     const game = getGame()
     const stats = getGameStats()
+    stats.game_uuid = game.game_uuid
     stats.status = GameStatus.Period1
     const req = new Request()
     req.setParams('game_uuid', game.game_uuid)
     req.setParams('game_id', game.game_id.toString())
     await gameStatsService.db.write({ [game.game_uuid]: stats })
     const res = new Response()
+    const report = { gameUuid: game.game_uuid, gametime: '00:00', timePeriod: 0, homeScore: 0, awayScore: 0, statusString: 'NotStarted', gameState: '', period: 1 }
+    await reportService.store(report)
+    const event = new WsGameEvent(EventType.GameStart, GameEvent.gameStart(new GameStats(stats)).info, { eventId: '1', gameId: 123, gametime: '00:00', timePeriod: 0, revision: 1, description: 'event', class: 'Period', period: 1 })
+    await wsEventService.store(event)
 
     // When
     await getServices['/game/:game_uuid/:game_id'](req, res)
 
     // Then
-    expect(res.send).toHaveBeenCalledTimes(1)
-    stats.events = []
-    const body = JSON.parse(res.body)
-    expect(body).toStrictEqual(stats)
+    expect(res.json).toHaveBeenCalledTimes(1)
+    stats.events = [JSON.parse(JSON.stringify(event))]
+    stats.report = report
+    const body = res.body
+    expect(JSON.parse(JSON.stringify(body))).toEqual(stats)
 })
 
 test('Get non existing game stats', async () => {
@@ -207,8 +217,8 @@ test('Get non existing game stats', async () => {
     await getServices['/game/:game_uuid/:game_id'](req, res)
 
     // Then
-    expect(res.send).toHaveBeenCalledTimes(1)
-    expect(res.body).toBe(JSON.stringify(GameStats.empty()))
+    expect(res.json).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(res.body)).toBe(JSON.stringify(GameStats.empty()))
 })
 
 test('Get non existing game stats, not found at all', async () => {
@@ -224,8 +234,8 @@ test('Get non existing game stats, not found at all', async () => {
     await getServices['/game/:game_uuid/:game_id'](req, res)
 
     // Then
-    expect(res.send).toHaveBeenCalledTimes(1)
-    expect(res.body).toBe(JSON.stringify(GameStats.empty()))
+    expect(res.json).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(res.body)).toBe(JSON.stringify(GameStats.empty()))
 })
 
 test('Get game stats, no params', async () => {
@@ -239,8 +249,8 @@ test('Get game stats, no params', async () => {
     await getServices['/game/:game_uuid/:game_id'](req, res)
 
     // Then
-    expect(res.send).toHaveBeenCalledTimes(1)
-    expect(res.body).toBe(JSON.stringify(GameStats.empty()))
+    expect(res.json).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(res.body)).toBe(JSON.stringify(GameStats.empty()))
 })
 
 test('Post user', async () => {

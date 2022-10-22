@@ -9,8 +9,6 @@ class ShlSocket {
     private _onGameReport: (arg0: WsGame) => Promise<any> = e => Promise.resolve()
 
     constructor(url: string) {
-    //  wss://socket.shl.se/broadcast/563/1ky0hpye/websocket
-
         this.url = url
         this.fileAppender = new FileAppend('./log')
 
@@ -124,7 +122,6 @@ interface WsGame {
 }
 
 interface WsEvent {
-    [x: string]: any
     // new
     eventId: string,
     gameId: number,

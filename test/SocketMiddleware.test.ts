@@ -1,5 +1,6 @@
 const fs = require('fs')
 import { EventType, GoalInfo, PenaltyInfo } from "../src/models/GameEvent"
+import { GameReportService } from "../src/services/GameReportService"
 import { SeasonService } from "../src/services/SeasonService"
 import { SocketMiddleware, WsGoalEvent, WsPenaltyEvent, WsPeriodEvent } from "../src/services/SocketMiddleware"
 import { WsEventService } from "../src/services/WsEventService"
@@ -30,9 +31,10 @@ socket.join = jest.fn()
 let middle: SocketMiddleware
 
 const wsEventService = new WsEventService()
+const gameReportService = new GameReportService()
 
 beforeEach(() => {
-    middle = new SocketMiddleware(new MockedSeasonService(), socket, wsEventService)
+    middle = new SocketMiddleware(new MockedSeasonService(), socket, wsEventService, gameReportService)
     socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})
@@ -48,6 +50,20 @@ test('Should join on game', () => {
     // Then
     expect(socket.join).toBeCalled()
     expect(middle.joinedGameIds[game.gameId]).toBe(game)
+})
+
+test('Should store GameReport', async () => {
+    // Given
+    const game = getGame()
+    
+    // When
+    middle.onGame(game)
+
+    // Then
+    const gameReport = await gameReportService.read('gameUuid_123')
+    expect(gameReport).toBeDefined()
+    expect(gameReport!.gameUuid).toBe('gameUuid_123')
+    expect(gameReport!.gametime).toBe(game.gametime)
 })
 
 test('Should store event', async () => {

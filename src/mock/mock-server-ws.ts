@@ -59,7 +59,7 @@ app.listen(port, () => console.log(`[MOCK]: Mock is running at http://localhost:
 /**
  * Feed
  */
-const feed: any[] = fs.readFileSync('./log/2022-10-15.log')
+const feed: any[] = fs.readFileSync('./log/2022-10-20.log')
     .toString()
     .split('\n')
     .filter((e: string) => e !== '"o"' && e != '')
@@ -141,7 +141,7 @@ function loop() {
         })
     }
     sendToWs!(event)
-    setTimeout(loop, 1)
+    setTimeout(loop, 1000)
 }
 
 function rand(): number {
@@ -251,7 +251,7 @@ function getLiveGameFrom(e: WsGame): Game {
         home_team_result: 0,
         away_team_code: e.awayTeamCode,
         away_team_result: 0,
-        game_uuid: 'game_' + e.gameId,
+        game_uuid: 'game_' + e.gameId + '_' + randomInt(1000),
         game_id: e.gameId,
         played: false,
         overtime: false,

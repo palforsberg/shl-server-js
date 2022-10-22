@@ -372,7 +372,7 @@ test("SHL-client returns error code with data", async () => {
     await looper.gameJob()
 
     // Then - stats should still be in db
-    const storedStats = gameStatsService.getFromDb(getGame().game_uuid)
+    const storedStats = gameStatsService.getFromCache(getGame().game_uuid)
     expect(storedStats).toBeUndefined()
 })
 
@@ -390,7 +390,7 @@ test("SHL-client returns error code with data in db for stats", async () => {
     await looper.gameJob()
 
     // Then - stats should still be in db
-    const storedStats = gameStatsService.getFromDb(getGame().game_uuid)
+    const storedStats = gameStatsService.getFromCache(getGame().game_uuid)
     expect(storedStats).toBeDefined()
     expect(storedStats?.playersByTeam).toBe(stats.playersByTeam)
     expect(storedStats?.gameState).toBe(stats.gameState)

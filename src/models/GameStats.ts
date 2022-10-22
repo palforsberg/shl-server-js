@@ -2,6 +2,7 @@
  * Stats of a single game.
  */
 
+import { GameReport } from "../services/GameReportService"
 import { GameStatus } from "./Game"
 import { GameEvent } from "./GameEvent"
 
@@ -73,6 +74,7 @@ class GameStatsIf {
      * Decorated
      */
     events?: GameEvent[]
+    report?: GameReport
 
     constructor() {
       this.gameState = ''

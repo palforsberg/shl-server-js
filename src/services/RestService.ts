@@ -7,7 +7,7 @@ import { UserService } from "./UserService";
 import { GameStats } from "../models/GameStats";
 import { EventService } from "./EventService";
 import { WsEventService } from "./WsEventService";
-const fs = require('fs');
+import { GameReportService } from "./GameReportService";
 
 class RestService {
     private seasonServices: Record<number, SeasonService>
@@ -16,6 +16,7 @@ class RestService {
     private statsService: GameStatsService
     private eventService: EventService
     private wsEventService: WsEventService
+    private gameReportService: GameReportService
     private app: any
 
     constructor(
@@ -26,6 +27,7 @@ class RestService {
         statsService: GameStatsService,
         eventService: EventService,
         wsEventService: WsEventService,
+        gameReportService: GameReportService,
     ) {
         this.app = app
         this.seasonServices = seasonServices
@@ -34,6 +36,7 @@ class RestService {
         this.statsService = statsService
         this.eventService = eventService
         this.wsEventService = wsEventService
+        this.gameReportService = gameReportService
     }
 
     startListen(port: number) {
@@ -46,18 +49,17 @@ class RestService {
             if (!season) {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
-            return season.read().then(s => res.send(JSON.stringify(s)))
+            return season.read().then(s => res.json(s))
          })
          
-         this.app.get('/game/:game_uuid/:game_id', (req: any, res: any) => {
-            let stats = this.statsService.getFromDb(req.params.game_uuid)
+         this.app.get('/game/:game_uuid/:game_id', async (req: any, res: any) => {
+            let stats = this.statsService.getFromCache(req.params.game_uuid)
             if (stats != undefined) {
-               return this.eventService.getEvents(req.params.game_uuid).then(events => {
-                  stats!.events = events
-                  return res.send(JSON.stringify(stats))
-               })
+               stats!.report = this.gameReportService.getFromCache(req.params.game_uuid)
+               stats!.events = await this.wsEventService.read(req.params.game_uuid)
+               return res.json(stats)
             }
-            return res.send(JSON.stringify(GameStats.empty()))
+            return res.json(GameStats.empty())
          })
          
          this.app.get('/standings/:season', (req: any, res: any) => {
@@ -72,9 +74,9 @@ class RestService {
                       return Promise.resolve()
                   }
                   return season.read().then(g => 
-                    res.send(JSON.stringify(StandingService.getEmptyStandingsFrom(g || [])))) 
+                    res.json(StandingService.getEmptyStandingsFrom(g || [])))
                } else {
-                  return res.send(JSON.stringify(s))
+                  return res.json(s)
                }
             }) 
          })
@@ -94,12 +96,12 @@ class RestService {
          })
          
          this.app.get('/teams', (req: any, res: any) => {
-            return res.send(JSON.stringify(TeamsService.getTeams()))
+            return res.json(TeamsService.getTeams())
          })
 
          this.app.get('/ws-events/:game_uuid', (req: any, res: any) => {
             return this.wsEventService.read(req.params.game_uuid)
-               .then(events => res.send(JSON.stringify(events)))
+               .then(events => res.json(events))
          })
     }
 }

@@ -13,7 +13,7 @@ class GameStatsService {
 
         this.update = this.update.bind(this)
         this.updateGame = this.updateGame.bind(this)
-        this.getFromDb = this.getFromDb.bind(this)
+        this.getFromCache = this.getFromCache.bind(this)
     }
 
     update(game: Game): Promise<GameStats | undefined> {
@@ -23,7 +23,7 @@ class GameStatsService {
         return this.updateGame(game.game_uuid, game.game_id)
     }
 
-    getFromDb(game_uuid: string): GameStats | undefined {
+    getFromCache(game_uuid: string): GameStats | undefined {
         const cached = this.db.readCached()[game_uuid]
         if (!cached) {
             return undefined
@@ -36,7 +36,7 @@ class GameStatsService {
             if (!stats || stats.recaps?.gameRecap == undefined || stats.recaps?.[0] == undefined) {
                 // incomplete stats, do not store, return existing
                 console.log(`[GAME_STATS_SERVICE] incomplete stats received ${game_uuid}`)
-                return Promise.resolve(this.getFromDb(game_uuid))
+                return Promise.resolve(this.getFromCache(game_uuid))
             }
             return this.db.read().then(old => {
                 const toWrite = old || {}
@@ -46,7 +46,7 @@ class GameStatsService {
             })
         }).catch(e => {
             console.error('[SERVICE] GameStats Error:', e)
-            return Promise.resolve(this.getFromDb(game_uuid))
+            return Promise.resolve(this.getFromCache(game_uuid))
         })
     }
 }

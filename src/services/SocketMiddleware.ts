@@ -1,6 +1,7 @@
 import { EventPlayer, EventType, GameInfo, GoalInfo, PenaltyInfo, PeriodInfo } from '../models/GameEvent'
 import { WsEventService, WsGameEvent } from '../services/WsEventService'
 import { ShlSocket, WsEvent, WsGame } from '../ShlSocket'
+import { GameReportService, GameReport } from './GameReportService'
 import { SeasonService } from './SeasonService'
 
 class SocketMiddleware {
@@ -8,14 +9,17 @@ class SocketMiddleware {
     season: SeasonService
     wsEventService: WsEventService
     joinedGameIds: Record<number, WsGame>
+    liveGameService: GameReportService
 
     constructor(
         season: SeasonService, 
         socket: ShlSocket,
-        wsEventService: WsEventService) {
+        wsEventService: WsEventService,
+        liveGameService: GameReportService) {
         this.socket = socket
         this.season = season
         this.wsEventService = wsEventService
+        this.liveGameService = liveGameService
         this.joinedGameIds = {}        
 
         this.onGame = this.onGame.bind(this)
@@ -38,20 +42,21 @@ class SocketMiddleware {
             this.socket.join(m.gameId)
         }
         this.joinedGameIds[m.gameId] = m
-        // update live_stats
+
+        await this.liveGameService.store(wsGameToLive(gameUuid, m))
     }
 
     async onEvent(m: WsEvent): Promise<WsGameEvent | undefined> {
         const gameUuid = this.season.gameIdToGameUuid[m.gameId]
         if (gameUuid == undefined) {
-            console.log(`[MIDDLE] Unknown game event ${m.team} - ${m.gameId}`)
+            console.log(`[MIDDLE] Unknown game event ${(m as WsGoalEvent)?.team} - ${m.gameId}`)
             return undefined
         }
         if (this.joinedGameIds[m.gameId] == undefined) {
             console.log(`[MIDDLE] Not joined game event ${JSON.stringify(m)}`)
             return undefined
         }
-        console.log(`[MIDDLE] EVENT - ${m.class} ${m.gametime} ${m.team} ${m.description} [${m.eventId} ${m.revision}]`)
+        console.log(`[MIDDLE] EVENT - ${m.class} ${m.gametime} ${(m as WsGoalEvent)?.team} ${m.description} [${m.eventId} ${m.revision}]`)
 
         const wsEvent = this.mapEvent(gameUuid, m)
         if (!wsEvent) return undefined
@@ -61,7 +66,6 @@ class SocketMiddleware {
             // send notification
         }
 
-        // update live_stats
         return wsEvent
     }
     
@@ -79,6 +83,7 @@ class SocketMiddleware {
             case 'ShotWide':
             case 'Timeout':
             case 'GoolkeeperEvent':
+            case 'ShootoutPenaltyShot':
             default:
                 break;
         }
@@ -168,6 +173,18 @@ class SocketMiddleware {
     }
 }
 
+function wsGameToLive(gameUuid: string, wsGame: WsGame): GameReport {
+    return {
+        gameUuid,
+        gametime: wsGame.gametime,
+        timePeriod: wsGame.timePeriod,
+        period: wsGame.period,
+        statusString: wsGame.statusString,
+        gameState: wsGame.gameState,
+        homeScore: parseInt(wsGame.homeScore),
+        awayScore: parseInt(wsGame.awayScore),
+    }
+}
 
 // {"eventId":44,"revision":2,"hash":"16029-44","channel":"All","gametime":"06:53","timePeriod":413,"gameId":16029,"realTime":"20221001161314","time":"1664633925.1865","period":2,"class":"Goal","type":"1-1","description":"1-1 (PP1) 20 J Connolly (2)","extra":{"pop":"POP: 14, 20, 23, 34, 47, 60","nep":"NEP: 4, 7, 26, 33, 37","assist":"14 J Berglund (1)","homeForward":["1"],"homeAgainst":["1"],"teamAdvantage":"PP1","scorerLong":"20 Jack Connolly","assistOneLong":"14 Jonas Berglund (1)"},"action":"message","source":"Parser","sourceport":"6600","team":"LHF","messagetype":"all","actiontype":"new","teamId":"1a71-1a71gTHKh","location":{"x":30,"y":-48},"status":"update","queue":"parser"}
 interface WsGoalEvent extends WsEvent {

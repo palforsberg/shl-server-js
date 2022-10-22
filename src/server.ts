@@ -17,6 +17,7 @@ import { ShlSocket } from './ShlSocket'
 import { SocketMiddleware } from './services/SocketMiddleware'
 import { WsEventService } from './services/WsEventService'
 import { FileAppend } from './services/FileAppend'
+import { GameReportService } from './services/GameReportService'
 
 const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
 require('events').EventEmitter.defaultMaxListeners = config.max_listeners || 100
@@ -34,7 +35,9 @@ const nrSeasons = 4
 const teamsService = new TeamsService()
 const userService = new UserService()
 const standingsService = new StandingService(currentSeason, nrSeasons, shl)
-
+const eventService = new EventService()
+const wsEventService = new WsEventService()
+const gameReportService = new GameReportService()
 const statsService = new GameStatsService(shl)
 const seasonServices = {
    2022: new SeasonService(currentSeason, 60 * 10, shl, statsService),
@@ -43,14 +46,11 @@ const seasonServices = {
    2019: new SeasonService(2019, -1, shl, statsService),
 }
 
-const eventService = new EventService()
-const wsEventService = new WsEventService()
-
 const notifier = new Notifier(config)
 notifier.setOnError(userService.handleNotificationError)
 
 const socket = new ShlSocket(config.shl_socket_path)
-const middleware = new SocketMiddleware(seasonServices[currentSeason], socket, wsEventService)
+const middleware = new SocketMiddleware(seasonServices[currentSeason], socket, wsEventService, gameReportService)
 
 FileAppend.enabled = config.production
 
@@ -81,6 +81,7 @@ const restService = new RestService(
    statsService,
    eventService,
    wsEventService,
+   gameReportService,
 )
 
 restService.setupRoutes()
@@ -90,7 +91,7 @@ Object.entries(seasonServices).forEach(e => e[1].update())
 Object.entries(standingsService.seasons).forEach(e => e[1].update())
 
 try {
-   // Populate stats cache
+   // Populate caches
    statsService.db.read()
       .then(() => eventService.db.read())
       .then(() => gameLoop.loop())

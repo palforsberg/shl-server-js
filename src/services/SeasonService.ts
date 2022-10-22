@@ -25,7 +25,7 @@ class SeasonService extends Service<Game[]> {
         return this.shl.getGames(this.season.toString()).then(games => {
             return games.map(g => {
                 this.gameIdToGameUuid[g.game_id] = g.game_uuid
-                return SeasonService.populate(g, this.gameStats.getFromDb(g.game_uuid))
+                return SeasonService.populate(g, this.gameStats.getFromCache(g.game_uuid))
             })
         })
     }

@@ -64,6 +64,8 @@ class Notifier {
             data: { 
                 game_uuid: event.info.game_uuid, 
                 team: (event.info as GoalInfo)?.team,
+                info: event.info,
+                type: event.type,
             }
         }
         return new Notification(user.apn_token!, options)

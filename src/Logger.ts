@@ -18,11 +18,13 @@ function setupLogger(config: Config) {
         exitOnError: false,
         transports: [
             new winston.transports.File({ filename: 'deployment/error.log', level: 'error', ...fileOption }),
+            new winston.transports.File({ filename: 'deployment/debug.log', level: 'debug', ...fileOption }),
             new winston.transports.File({ filename: 'deployment/console.log', ...fileOption }),
         ],
         exceptionHandlers: [
             new winston.transports.File({ filename: 'deployment/error.log' }),
             new winston.transports.File({ filename: 'deployment/console.log' }),   
+            new winston.transports.File({ filename: 'deployment/debug.log' }),
         ],
     })
     if (!config.production) {
@@ -31,6 +33,7 @@ function setupLogger(config: Config) {
         logger.exceptions.handle(new winston.transports.Console())
     }
     console.log = (...e) => logger.info(e.join(' '))
+    console.debug = (...e) => logger.debug(e.join(' '))
     console.error = (...e) => {
         const error = e.find(e => e instanceof Error)
         if (error) {

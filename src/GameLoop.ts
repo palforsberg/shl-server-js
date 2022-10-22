@@ -87,7 +87,7 @@ class GameLoop {
     }
     
     private updateStats(game: Game): Promise<[GameStats | undefined, GameStats | undefined]> {
-        const old = this.gameStatsService.getFromDb(game.game_uuid)
+        const old = this.gameStatsService.getFromCache(game.game_uuid)
         return this.gameStatsService
             .update(game)
             .then(newStats => {
