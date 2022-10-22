@@ -100,7 +100,7 @@ class RestService {
          })
 
          this.app.get('/ws-events/:game_uuid', (req: any, res: any) => {
-            return this.wsEventService.read(req.params.game_uuid)
+            return this.eventService.getEvents(req.params.game_uuid)
                .then(events => res.json(events))
          })
     }

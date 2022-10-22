@@ -129,6 +129,16 @@ function loop() {
         console.log(`${event.class} ${event.gameId} ${event.gametime} ${event.team ?? ''}`)
     }
 
+    if (event.class == 'Goal') {
+        season.liveGames = season.liveGames.map(e => {
+            if (e.game_id == event.gameId) {
+                const stats = gameStats[e.game_uuid]
+                stats.recaps!.gameRecap!.homeG = parseInt(event.extra.homeForward[0])
+                stats.recaps!.gameRecap!.awayG = parseInt(event.extra.homeAgainst[0])
+            }
+            return e
+        })
+    }
     if (event.class == 'Period' && event.period == 0 && event.extra.gameStatus == 'GameEnded') {
         season.liveGames = season.liveGames.map(e => {
             if (e.game_id == event.gameId) {
