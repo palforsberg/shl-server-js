@@ -1,12 +1,14 @@
-import WebSocket from 'ws'
+import SockJS from 'sockjs-client'
 import { FileAppend } from './services/FileAppend'
 
 class ShlSocket {
     private url: string
     private fileAppender: FileAppend
-    private ws?: WebSocket
+    private ws?: any
+    private openedTimestamp?: Date
     private _onEvent: (arg0: WsEvent) => Promise<any> = e => Promise.resolve()
     private _onGameReport: (arg0: WsGame) => Promise<any> = e => Promise.resolve()
+    private _onClose: VoidFunction = () => {}
 
     constructor(url: string) {
         this.url = url
@@ -27,13 +29,16 @@ class ShlSocket {
     onGameReport(onGameReport: (arg0: WsGame) => Promise<any>) {
         this._onGameReport = onGameReport
     }
+    onClose(onClose: VoidFunction) {
+        this._onClose = onClose
+    }
 
     join(gameId: number) {
         this.send({ action: 'join', channel: gameId })
     }
 
     send(obj: any) {
-        const str = JSON.stringify([obj])
+        const str = JSON.stringify(obj)
         this.ws?.send(str)
         console.log('[SOCKET] Sent' + str)
     }
@@ -42,15 +47,16 @@ class ShlSocket {
         if (this.ws == undefined) return
         console.log('[SOCKET] Closing')
         this.ws?.close()
-        this.ws = undefined
     }
 
-    reopen(games: WsGame[]) {
+    async reopen(games: number[]) {
         console.log('[SOCKET] Reopening')
         this.close()
-        this.open().then(_ => {
-            games.forEach(e => this.join(e.gameId))
-        })
+
+        await new Promise((res) => setTimeout(res, 1000))
+
+        await this.open()
+        console.log('[SOCKET] Reopened')
     }
  
     open(): Promise<any> {
@@ -58,36 +64,35 @@ class ShlSocket {
         
         console.log('[SOCKET] Opening')
         return new Promise((res, rej) => {
-            this.ws = new WebSocket(this.url)
-            this.ws.on('open', () => {
-                console.log('[SOCKET] Opened')
+            this.ws = new SockJS(this.url)
+            this.ws.onopen = () => {
+                this.openedTimestamp = new Date()
+                console.log('[SOCKET] Opened', this.openedTimestamp)
                 res('')
-            })
-            this.ws.on('close', (code, reason) => {
-                this.close()
-                console.log('[SOCKET] Closed', code, reason.toString())
-            })
-            this.ws.on('message', (data: any) => {
-                const str = data.toString()
+            }
+            this.ws.onclose = (reason: any) => {
+                this._onClose()
+                this.ws = undefined
+                console.log('[SOCKET] Closed', JSON.stringify(reason))
+            }
+            this.ws.onmessage = (msg: any) => {
                 try {
                     // store all events in a full-day file
-                    this.fileAppender.store('_date', str)
-                    this.onMessage(str)
+                    this.fileAppender.store('_date', msg)
+                    this.onMessage(msg.data)
                 } catch (e) {
-                    console.error('[SOCKET] Failed to parse', str, e)
+                    console.error('[SOCKET] Failed to parse', msg, e)
                 }
-            })
-            this.ws.on('error', (e: any) => {
+            }
+            this.ws.onerror = (e: any) => {
                 console.error('[SOCKET]', e)
                 this.close()
-            })
+            }
         })
     }
 
     async onMessage(str: string) {
-        if (str == 'o') return
-
-        const m = ShlSocket.parse(str)
+        const m = JSON.parse(str)
         switch (m.class) {
             case 'GameReport':
                 for (const g of m.games) {
@@ -100,10 +105,6 @@ class ShlSocket {
                 await this._onEvent(m as WsEvent)
                 break
         }
-    }
-
-    static parse(str: string): any {
-        return JSON.parse(JSON.parse(str.substring(1))[0])
     }
 }
 
@@ -119,6 +120,7 @@ interface WsGame {
     statusString: string
     gameState: string
     period: number
+    arena: string
 }
 
 interface WsEvent {

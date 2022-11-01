@@ -2,6 +2,9 @@ import { Config } from "../src/models/Config"
 import { Game } from "../src/models/Game"
 import { GameStats, GameStatsIf, PeriodStats, Player } from "../src/models/GameStats"
 import { Standing } from "../src/models/Standing"
+import { GameReport } from "../src/services/GameReportService"
+import { WsPeriodEvent } from "../src/services/SocketMiddleware"
+import { WsEvent, WsGame } from "../src/ShlSocket"
 
 function getStanding(team_code = 'LHF', gp = 123, points = 66, rank = 1, diff = 6): Standing {
     return {
@@ -47,6 +50,52 @@ function getGameStats(homeG = 0, awayG = 0): GameStatsIf {
                 players: [getPlayer(1), getPlayer(2)],
                 GK: [],
             }
+        }
+    }
+}
+
+function getGameReport(): GameReport {
+    return {
+        gameUuid: 'game_uuid',
+        gametime: '00:00',
+        timePeriod: 0,
+        statusString: 'Ongoing',
+        gameState: 'Ongoing',
+        period: 1,
+        homeScore: 0,
+        awayScore: 0,
+    }
+}
+
+function getWsGame(): WsGame {
+    return {
+        gameId: 321,
+
+        homeTeamCode: 'LHF',
+        awayTeamCode: 'FBK',
+        homeScore: '2',
+        awayScore: '0',
+        gametime: '00:00',
+        timePeriod: 0,
+        statusString: 'Ongoing',
+        gameState: 'Ongoing',
+        period: 1,
+        arena: 'Coop arena',
+    }
+}
+
+function getWsPeriodEvent(): WsPeriodEvent {
+    return {
+        eventId: '123',
+        gameId: 321,
+        revision: 1,
+        period: 1,
+        timePeriod: 0,
+        gametime: '00:00',
+        description: 'Description',
+        class: 'Period',
+        extra: {
+            gameStatus: 'GameEnded',
         }
     }
 }
@@ -141,4 +190,7 @@ export {
     mockAxios,
     mockAxiosFn,
     getConfig,
+    getGameReport,
+    getWsGame,
+    getWsPeriodEvent,
 }

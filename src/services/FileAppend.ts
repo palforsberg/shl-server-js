@@ -15,7 +15,11 @@ class FileAppend {
         if (fileName == '_date') {
             name = new Date().toISOString().split('T')[0]
         }
-        fs.appendFileSync(`${this.path}/${name}.log`, JSON.stringify(object) + '\n')
+        let str = object
+        if (typeof object != 'string') {
+            str = JSON.stringify(object)
+        }
+        fs.appendFileSync(`${this.path}/${name}.log`, str + '\n')
     }
 }
 

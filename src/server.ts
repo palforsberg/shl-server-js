@@ -60,6 +60,9 @@ socket.onEvent(e => {
 socket.onGameReport(g => {
    return middleware.onGame(g)
 })
+socket.onClose(() => {
+   middleware.clearJoinedGameIds()
+})
 
 const gameLoop = new GameLoop(
    config,

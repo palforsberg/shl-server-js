@@ -11,16 +11,8 @@ class GameStatsService {
         this.client = client
         this.db = new Db<Record<string, GameStatsIf>>('game_stats', {})
 
-        this.update = this.update.bind(this)
         this.updateGame = this.updateGame.bind(this)
         this.getFromCache = this.getFromCache.bind(this)
-    }
-
-    update(game: Game): Promise<GameStats | undefined> {
-        if (game == undefined){
-            return Promise.resolve(undefined)
-        }
-        return this.updateGame(game.game_uuid, game.game_id)
     }
 
     getFromCache(game_uuid: string): GameStats | undefined {
@@ -31,7 +23,7 @@ class GameStatsService {
         return new GameStats(cached)
     }
 
-    private updateGame(game_uuid: string, game_id: number): Promise<GameStats | undefined> {
+    updateGame(game_uuid: string, game_id: number): Promise<GameStats | undefined> {
         return this.client.getGameStats(game_uuid, game_id).then(stats => {
             if (!stats || stats.recaps?.gameRecap == undefined || stats.recaps?.[0] == undefined) {
                 // incomplete stats, do not store, return existing

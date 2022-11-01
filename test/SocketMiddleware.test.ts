@@ -7,7 +7,7 @@ import { WsEventService } from "../src/services/WsEventService"
 import { ShlSocket, WsEvent, WsGame } from "../src/ShlSocket"
 
 jest.mock("fs")
-jest.mock('ws')
+jest.mock('sockjs-client')
 
 fs.promises = {
     readFile: () => Promise.reject({ code: 'ENOENT'}),
@@ -368,5 +368,6 @@ function getGame(): WsGame {
         statusString: 'P1 / 00:39',
         gameState: 'Ongoing',
         period: 1,
+        arena: 'Coop Arena',
     }
 }

@@ -68,6 +68,11 @@ class SocketMiddleware {
 
         return wsEvent
     }
+
+    clearJoinedGameIds() {
+        this.joinedGameIds = {}
+        console.log('[MIDDLE] Cleared joinedGameIds')
+    }
     
     private mapEvent(gameUuid: string, m: WsEvent): WsGameEvent | undefined {
         switch (m.class) {

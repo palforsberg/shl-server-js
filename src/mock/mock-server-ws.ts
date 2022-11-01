@@ -4,8 +4,9 @@ import express, { Response, Request } from 'express'
 import { Game } from '../models/Game'
 import { GameStats, GameStatsIf, PeriodStats, Player } from '../models/GameStats'
 import { Standing } from '../models/Standing'
-import { WebSocketServer } from 'ws'
-import { ShlSocket, WsGame } from '../ShlSocket'
+import { WsGame } from '../ShlSocket'
+import sockjs from 'sockjs'
+
 const fs = require('fs')
 
 const app = express().use(express.json())
@@ -54,18 +55,22 @@ app.get('/gamecenter/:game_uuid/statistics/:game_id.json', (req: Request, res: R
 app.get('/seasons/:season/statistics/teams/standings.json', (req: Request, res: Response) => {
     return res.send(JSON.stringify(standings))
 })
-app.listen(port, () => console.log(`[MOCK]: Mock is running at http://localhost:${port}`))
+const httpServer = app.listen(port, () => console.log(`[MOCK]: Mock is running at http://localhost:${port}`))
 
 /**
  * Feed
  */
-const feed: any[] = fs.readFileSync('./log/2022-10-20.log')
+const feed: any[] = fs.readFileSync('./log/2022-10-27.log')
     .toString()
     .split('\n')
     .filter((e: string) => e !== '"o"' && e != '')
     .map(JSON.parse)
-    .map(ShlSocket.parse)
+    .map(parse)
 
+
+function parse(str: string): any {
+    return JSON.parse(JSON.parse(str.substring(1))[0])
+}
 const gameReportGames: Record<number, WsGame> = {}
 feed
     .filter((e: any) => e.class == 'GameReport')
@@ -79,21 +84,24 @@ const firstGameReport = feed.find(e => e.class == 'GameReport')
  * WebSocket
  */
 let sendToWs: ((arg0: any) => void) | undefined = undefined
-const wss = new WebSocketServer({ port: 8090 })
+const wss = sockjs.createServer()
+
 wss.on('connection', ws => {
-    ws.send('a' + JSON.stringify([JSON.stringify(firstGameReport)]))
+    ws.write(JSON.stringify(firstGameReport))
     sendToWs = (e: any) => {
-        ws.send('a' + JSON.stringify([JSON.stringify(e)]))
+        ws.write(JSON.stringify(e))
     }
+    ws.on('close', () => {
+        console.log('CLOSED')
+        sendToWs = undefined
+    })
 })
-wss.on('close', () => {
-    sendToWs = undefined
-})
+wss.installHandlers(httpServer, { prefix: '/ws' })
 
 const liveGames = Object.values(gameReportGames)
     .filter((e: WsGame) => getTeams()[e.homeTeamCode] != undefined)
     .map((e: WsGame) => getLiveGameFrom(e))
-
+ 
 const teams = Object.keys(getTeams())
 const season = new Season(liveGames)
 const seasonGames = season.getAllGames()
@@ -114,13 +122,6 @@ function loop() {
     const event = feed.shift()
     if (!event) {
         console.log('EMPTY')
-        season.liveGames = season.liveGames.map(e => {
-            e.played = true
-            const stats = gameStats[e.game_uuid]
-            stats.gameState = 'GameEnded'
-            stats.recaps!.gameRecap!.homeG = 1
-            return e
-        })
         return
     }
     if (event.class == 'GameReport') {
@@ -135,6 +136,9 @@ function loop() {
                 const stats = gameStats[e.game_uuid]
                 stats.recaps!.gameRecap!.homeG = parseInt(event.extra.homeForward[0])
                 stats.recaps!.gameRecap!.awayG = parseInt(event.extra.homeAgainst[0])
+                
+                e.home_team_result = parseInt(event.extra.homeForward[0])
+                e.away_team_result = parseInt(event.extra.homeAgainst[0])
             }
             return e
         })
@@ -145,7 +149,6 @@ function loop() {
                 e.played = true
                 const stats = gameStats[e.game_uuid]
                 stats.gameState = 'GameEnded'
-                stats.recaps!.gameRecap!.homeG = 1
             }
             return e
         })

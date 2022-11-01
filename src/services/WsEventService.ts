@@ -50,6 +50,11 @@ class WsEventService {
         return newEvent
     }
 
+    readCached(gameUuid: string): WsGameEvent[] {
+        const allEvents = this.db.readCached()
+        return allEvents[gameUuid] || []
+    }
+
     async read(gameUuid: string): Promise<WsGameEvent[]> {
         const allEvents = await this.db.read()
         return allEvents[gameUuid] || []

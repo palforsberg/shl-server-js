@@ -16,14 +16,16 @@
     "axios": "^0.21.0",
     "express": "^4.17.1",
     "forever": "^4.0.3",
-    "winston": "^3.3.3",
-    "ws": "^8.9.0"
+    "sockjs": "^0.3.24",
+    "sockjs-client": "^1.6.1",
+    "winston": "^3.3.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",
     "@types/jest": "^26.0.24",
     "@types/node": "^16.4.1",
-    "@types/ws": "^8.5.3",
+    "@types/sockjs": "^0.3.33",
+    "@types/sockjs-client": "^1.5.1",
     "jest": "^27.0.6",
     "jest-express": "^1.12.0",
     "ts-jest": "^27.0.4",

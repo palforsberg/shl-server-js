@@ -7,7 +7,7 @@ import { WsEventService, WsGameEvent } from "../src/services/WsEventService"
 import { ShlSocket, WsGame } from "../src/ShlSocket"
 
 jest.mock("fs")
-jest.mock('ws')
+jest.mock('sockjs-client')
 const _fs = jest.requireActual('fs');
 
 fs.promises = {
@@ -45,7 +45,11 @@ const rawFeed: string[] = _fs.readFileSync('./test/resources/2022-10-15.log')
     .map((e: string) => JSON.parse(e))
 
 const jsonFeed = rawFeed
-    .map(ShlSocket.parse)
+    .map(parse)
+
+function parse(str: string): any {
+    return JSON.parse(JSON.parse(str.substring(1))[0])
+}
 
 const gameReportGames: Record<number, WsGame> = {}
 jsonFeed
@@ -67,8 +71,8 @@ test('Run feed for complete day', async () => {
     // Given
 
     // When - Push all events to socket
-    for (const e of rawFeed) {
-        await socket.onMessage(e)
+    for (const e of jsonFeed) {
+        await socket.onMessage(JSON.stringify(e))
     }
 
     // Then
