@@ -4,7 +4,6 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "preinstall": "npm i -g pm2@5.2.2",
     "start": "tsc && ./start_cli.sh",
     "tsc": "tsc",
     "test": "jest --silent"
@@ -17,8 +16,7 @@
     "axios": "^0.21.0",
     "express": "^4.17.1",
     "sockjs": "^0.3.24",
-    "sockjs-client": "^1.6.1",
-    "winston": "^3.3.3"
+    "sockjs-client": "^1.6.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",
