@@ -4,8 +4,9 @@ function setupLogger(config: Config) {
     if (!config.production) {
         // log to stdout as well
         console.debug = (...e) => console.log(e.join(' '))
+    } else {
+        console.debug = (e) => {}
     }
-
     process.on('uncaughtException', e => {
         console.error('uncaughtException:', e)
     })
