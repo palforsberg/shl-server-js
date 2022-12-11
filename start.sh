@@ -2,6 +2,6 @@
 
 ./stop.sh
 
-./node_modules/forever/bin/forever start ./dist/src/server.js './deployment/config.json' 
+pm2 start ecosystem.config.js
 
 echo "Started"

@@ -68,7 +68,6 @@ class ShlSocket {
             this.ws.onopen = () => {
                 this.openedTimestamp = new Date()
                 console.log('[SOCKET] Opened', this.openedTimestamp)
-                res('')
             }
             this.ws.onclose = (reason: any) => {
                 this._onClose()
@@ -88,6 +87,7 @@ class ShlSocket {
                 console.error('[SOCKET]', e)
                 this.close()
             }
+            setTimeout(res, 1000)
         })
     }
 

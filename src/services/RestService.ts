@@ -61,6 +61,11 @@ class RestService {
             }
             return res.json(GameStats.empty())
          })
+
+         this.app.post('/game/fetch/:game_uuid/:game_id/:pass', async (req: any, res: any) => {
+            let stats = await this.statsService.updateGame(req.params.game_uuid, req.params.game_id)
+            return res.json(stats)
+         })
          
          this.app.get('/standings/:season', (req: any, res: any) => {
             const standing = this.standingServices.getSeason(req.params.season)
