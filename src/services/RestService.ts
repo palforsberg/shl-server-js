@@ -5,36 +5,36 @@ import { StandingService } from "./StandingService";
 import { TeamsService } from "./TeamsService";
 import { UserService } from "./UserService";
 import { GameStats } from "../models/GameStats";
-import { EventService } from "./EventService";
 import { WsEventService } from "./WsEventService";
-import { GameReportService } from "./GameReportService";
+import { GameReportService, getStatusFromGameReport } from "./GameReportService";
+import { Config } from "../models/Config";
 
 class RestService {
+    private config: Config
     private seasonServices: Record<number, SeasonService>
     private standingServices: StandingService
     private users: UserService
     private statsService: GameStatsService
-    private eventService: EventService
     private wsEventService: WsEventService
     private gameReportService: GameReportService
     private app: any
 
     constructor(
+        config: Config,
         app: any,
         seasonServices: Record<number, SeasonService>,
         standingServices: StandingService,
         users: UserService,
         statsService: GameStatsService,
-        eventService: EventService,
         wsEventService: WsEventService,
         gameReportService: GameReportService,
     ) {
+        this.config = config
         this.app = app
         this.seasonServices = seasonServices
         this.standingServices = standingServices
         this.users = users
         this.statsService = statsService
-        this.eventService = eventService
         this.wsEventService = wsEventService
         this.gameReportService = gameReportService
     }
@@ -55,7 +55,13 @@ class RestService {
          this.app.get('/game/:game_uuid/:game_id', async (req: any, res: any) => {
             let stats = this.statsService.getFromCache(req.params.game_uuid)
             if (stats != undefined) {
-               stats!.report = this.gameReportService.getFromCache(req.params.game_uuid)
+               const report = this.gameReportService.getFromCache(req.params.game_uuid)
+               stats!.report = report
+               if (report && stats.recaps?.gameRecap != undefined) {
+                  stats.recaps!.gameRecap.homeG = report.homeScore
+                  stats.recaps!.gameRecap.awayG = report.awayScore
+                  stats.status = getStatusFromGameReport(report)
+               }
                stats!.events = await this.wsEventService.read(req.params.game_uuid)
                return res.json(stats)
             }
@@ -102,11 +108,6 @@ class RestService {
          
          this.app.get('/teams', (req: any, res: any) => {
             return res.json(TeamsService.getTeams())
-         })
-
-         this.app.get('/ws-events/:game_uuid', (req: any, res: any) => {
-            return this.eventService.getEvents(req.params.game_uuid)
-               .then(events => res.json(events))
          })
     }
 }

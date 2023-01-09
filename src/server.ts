@@ -11,7 +11,6 @@ import { SeasonService } from './services/SeasonService'
 import { StandingService } from './services/StandingService'
 import { RestService } from './services/RestService'
 import express from 'express'
-import { EventService } from './services/EventService'
 import { Notifier } from './Notifier'
 import { ShlSocket } from './ShlSocket'
 import { SocketMiddleware } from './services/SocketMiddleware'
@@ -35,22 +34,21 @@ const nrSeasons = 4
 const teamsService = new TeamsService()
 const userService = new UserService()
 const standingsService = new StandingService(currentSeason, nrSeasons, shl)
-const eventService = new EventService()
 const wsEventService = new WsEventService()
 const gameReportService = new GameReportService()
 const statsService = new GameStatsService(shl)
 const seasonServices = {
-   2022: new SeasonService(currentSeason, 60 * 10, shl, statsService),
-   2021: new SeasonService(2021, -1, shl, statsService),
-   2020: new SeasonService(2020, -1, shl, statsService),
-   2019: new SeasonService(2019, -1, shl, statsService),
+   2022: new SeasonService(currentSeason, 60 * 10, shl, gameReportService),
+   2021: new SeasonService(2021, -1, shl, gameReportService),
+   2020: new SeasonService(2020, -1, shl, gameReportService),
+   2019: new SeasonService(2019, -1, shl, gameReportService),
 }
 
-const notifier = new Notifier(config)
+const notifier = new Notifier(config, userService)
 notifier.setOnError(userService.handleNotificationError)
 
 const socket = new ShlSocket(config.shl_socket_path)
-const middleware = new SocketMiddleware(seasonServices[currentSeason], socket, wsEventService, gameReportService)
+const middleware = new SocketMiddleware(seasonServices[currentSeason], socket, wsEventService, gameReportService, notifier)
 
 FileAppend.enabled = config.production
 
@@ -65,24 +63,20 @@ socket.onClose(() => {
 })
 
 const gameLoop = new GameLoop(
-   config,
    seasonServices[currentSeason],
-   userService,
    statsService,
    standingsService,
-   eventService,
-   notifier,
    socket)
 
 const app = express().use(express.json())
 
 const restService = new RestService(
+   config,
    app,
    seasonServices,
    standingsService,
    userService,
    statsService,
-   eventService,
    wsEventService,
    gameReportService,
 )
@@ -97,7 +91,7 @@ try {
    // Populate caches
    seasonServices[currentSeason].populateGameIdCache()
       .then(() => statsService.db.read())
-      .then(() => eventService.db.read())
+      .then(() => wsEventService.db.read())
       .then(() => gameLoop.loop())
 } catch (e) {
    console.log('[SERVER] Loop threw ', e)

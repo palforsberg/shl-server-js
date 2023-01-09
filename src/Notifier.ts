@@ -2,13 +2,15 @@ import { Config } from './models/Config'
 import { GameEvent, GoalInfo } from './models/GameEvent'
 import { User } from './models/User'
 import { ApnsClient, Notification, NotificationOptions, Errors } from 'apns2'
+import { UserService } from './services/UserService'
 const fs = require('fs')
 
 class Notifier {
     apns: ApnsClient
     enabled: boolean
+    userService: UserService
 
-    constructor(config: Config) {
+    constructor(config: Config, userService: UserService) {
         var options: any = {
             team: config.apn_team_id,
             keyId: config.apn_key_id,
@@ -18,6 +20,7 @@ class Notifier {
         }
         this.apns = new ApnsClient(options)
         this.enabled = config.send_notifications
+        this.userService = userService
         this.setOnError = this.setOnError.bind(this)
     }
 
@@ -29,10 +32,11 @@ class Notifier {
     /**
      * For the event, get a list of users to send notification to.
      */
-    async notify(event: GameEvent | undefined, users: User[]): Promise<User[]> {
-        if (!event || !event.shouldNotify()) return Promise.resolve(users)
+    async sendNotification(event: GameEvent): Promise<User[]> {
+        const users = await this.userService.db.read()
+
         if (!this.enabled) {
-            console.log('[NOTIFIER] Muted', event.toString(false))
+            console.log('[NOTIFIER] Muted', event.toString())
             return Promise.resolve(users)
         }
 
@@ -52,12 +56,11 @@ class Notifier {
     }
 
     private getNotification(user: User, event: GameEvent): Notification {
-        const isUsersTeam = user.teams.includes((event.info as GoalInfo)?.team ?? '')
         var options: NotificationOptions = {
             sound: 'ping.aiff',
             expiration: Math.floor(Date.now() / 1000) + 3600,
             alert: {
-                title: event.getTitle(isUsersTeam),
+                title: event.getTitle(user.teams),
                 body: event.getBody() ?? '',
             },
             collapseId: event.info.game_uuid,

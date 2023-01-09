@@ -37,18 +37,16 @@ const shl = new SHL(config, 1)
 
 const userService = new UserService()
 const gameStatsService = new GameStatsService(shl)
-const seasonService = new SeasonService(season, 0, shl, gameStatsService)
+const reportService = new GameReportService()
+const seasonService = new SeasonService(season, 0, shl, reportService)
 const seasonServices = {
     2030: seasonService,
-    2021: new SeasonService(2021, -1, shl, gameStatsService),
-    2020: new SeasonService(2020, -1, shl, gameStatsService),
-    2019: new SeasonService(2019, -1, shl, gameStatsService),
+    2021: new SeasonService(2021, -1, shl, reportService),
+    2020: new SeasonService(2020, -1, shl, reportService),
+    2019: new SeasonService(2019, -1, shl, reportService),
  }
 const standingsService = new StandingService(season, 4, shl)
-const teamsService = new TeamsService()
-const eventService = new EventService()
 const wsEventService = new WsEventService()
-const reportService = new GameReportService()
 
 const getServices: Record<string, (a: any, b: any) => void> = {}
 const postServices: Record<string, (a: any, b: any) => void> = {}
@@ -60,12 +58,12 @@ app.post = jest.fn().mockImplementation((e, fnc) => {
 })
 
 const restService = new RestService(
+    config,
     app,
     seasonServices,
     standingsService,
     userService,
     gameStatsService,
-    eventService,
     wsEventService,
     reportService,
 )
@@ -182,13 +180,12 @@ test('Get game stats', async () => {
     const game = getGame()
     const stats = getGameStats()
     stats.game_uuid = game.game_uuid
-    stats.status = GameStatus.Period1
     const req = new Request()
     req.setParams('game_uuid', game.game_uuid)
     req.setParams('game_id', game.game_id.toString())
     await gameStatsService.db.write({ [game.game_uuid]: stats })
     const res = new Response()
-    const report = { gameUuid: game.game_uuid, gametime: '00:00', timePeriod: 0, homeScore: 0, awayScore: 0, statusString: 'NotStarted', gameState: '', period: 1 }
+    const report = { gameUuid: game.game_uuid, gametime: '00:00', timePeriod: 0, homeScore: 0, awayScore: 0, statusString: 'Ongoing', gameState: 'Ongoing', period: 1 }
     await reportService.store(report)
     const event = new WsGameEvent(EventType.GameStart, GameEvent.gameStart(new GameStats(stats)).info, { eventId: '1', gameId: 123, gametime: '00:00', timePeriod: 0, revision: 1, description: 'event', class: 'Period', period: 1 })
     await wsEventService.store(event)
@@ -200,6 +197,7 @@ test('Get game stats', async () => {
     expect(res.json).toHaveBeenCalledTimes(1)
     stats.events = [JSON.parse(JSON.stringify(event))]
     stats.report = report
+    stats.status = GameStatus.Period1
     const body = res.body
     expect(JSON.parse(JSON.stringify(body))).toEqual(stats)
 })

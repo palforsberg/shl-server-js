@@ -49,7 +49,7 @@ class ShlSocket {
         this.ws?.close()
     }
 
-    async reopen(games: number[]) {
+    async reopen() {
         console.log('[SOCKET] Reopening')
         this.close()
 
@@ -121,6 +121,8 @@ interface WsGame {
     gameState: string
     period: number
     arena: string
+
+    attendance?: string
 }
 
 interface WsEvent {

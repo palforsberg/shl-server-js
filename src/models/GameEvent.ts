@@ -26,8 +26,6 @@ interface GameInfo {
     periodNumber: number,
 }
 interface GoalInfo extends GameInfo {
-    periodFormatted: string,
-    isPowerPlay: boolean,
     team: string,
     player?: EventPlayer
     teamAdvantage: string
@@ -65,19 +63,28 @@ class GameEvent {
         this.timestamp = new Date()
     }
 
-    getTitle(excited: boolean): string {
+    getTitle(userTeam: string[] = []): string {
         switch (this.type) {
             case EventType.GameStart: return 'Matchen började'
-            case EventType.GameEnd: return 'Matchen slutade'
+            case EventType.GameEnd: {
+                if (this.info.homeResult == this.info.awayResult) {
+                    return 'Matchen slutade'
+                }
+                const victor = this.info.homeResult > this.info.awayResult ? this.info.homeTeamId : this.info.awayTeamId
+                const userFavorsVictor = userTeam.includes(victor)
+                if (userFavorsVictor) {
+                    return `${TeamsService.getShortName(victor)} segrar! 🎉`
+                } else {
+                    return `${TeamsService.getShortName(victor)} vann matchen`
+                } 
+            }
             case EventType.Goal: {
-                var t = excited ? 'MÅÅÅL' : 'Mål'
-                if ((this.info as GoalInfo)?.team) {
-                    t += ' för ' + TeamsService.getShortName((this.info as GoalInfo)?.team)
-                }
+                const excited = userTeam.includes((this.info as GoalInfo)?.team ?? '')
                 if (excited) {
-                    return t + '!'
+                    return `MÅÅÅL för ${TeamsService.getShortName((this.info as GoalInfo)?.team)}!`
+                } else {
+                    return `Mål för ${TeamsService.getShortName((this.info as GoalInfo)?.team)}`
                 }
-                return t
             }
             case EventType.PeriodStart:
                 return `Period ${(this.info as PeriodInfo)?.periodNumber} började`
@@ -103,9 +110,9 @@ class GameEvent {
             let t = '';
             if ((this.info as GoalInfo)?.player) {
                 const p = (this.info as GoalInfo).player!
-                t += p.firstName + ' ' + p.familyName + ' i '
+                t += p.firstName + ' ' + p.familyName + ' '
             }
-            t += (this.info as GoalInfo)?.periodFormatted ?? ''
+            t += GameEvent.getPeriodFormatted(this.info.periodNumber)
             if (t) {
                 t = '\n' + t
             }
@@ -125,8 +132,8 @@ class GameEvent {
         }
     }
 
-    toString(excited: boolean): string {
-        return this.getTitle(excited) + ' ' + this.getBody() 
+    toString(): string {
+        return this.getTitle() + ' ' + this.getBody() 
     }
 
     getId(): string {
@@ -164,10 +171,8 @@ class GameEvent {
     static goal(game: GameStats, team: string, player: Player | undefined, isPowerPlay: boolean): GameEvent {
         const info: GoalInfo = { 
             ...this.getGameInfo(game),
-            periodFormatted: game.getCurrentPeriodFormatted(),
             team,
             player,
-            isPowerPlay,
             teamAdvantage: isPowerPlay ? 'PP' : '',
         }
         return new GameEvent(EventType.Goal, info)
@@ -203,6 +208,22 @@ class GameEvent {
             homeResult: game.getHomeResult(),
             awayResult: game.getAwayResult(),
             periodNumber: game.getCurrentPeriodNumber(),
+        }
+    }
+
+    static getPeriodFormatted(period: number): string {
+        switch (period) {
+          case 99:
+            return 'efter straffar'
+          case 4:
+            return 'i övertid'
+          case 3:
+            return 'i 3:e perioden'
+          case 2:
+            return 'i 2:a perioden'
+          case 1:
+          default:
+            return 'i 1:a perioden'
         }
     }
 }

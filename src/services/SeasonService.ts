@@ -1,31 +1,40 @@
 import { Game, GameStatus } from "../models/Game";
-import { GameStats } from "../models/GameStats";
 import { Service } from "../Service";
 import { SHL } from "../ShlClient";
-import { GameStatsService } from "./GameStatsService";
+import { GameReport, GameReportService, getStatusFromGameReport } from "./GameReportService";
 
 class SeasonService extends Service<Game[]> {
     shl: SHL
     season: number
-    gameStats: GameStatsService
+    gameReports: GameReportService
     gameIdToGameUuid: Record<number, string>
 
-    constructor(season: number, expiryDelta: number, shl: SHL, gameStats: GameStatsService) {
+    constructor(
+        season: number,
+        expiryDelta: number,
+        shl: SHL,
+        gameReports: GameReportService) {
         super(`games_${season}`, [], () => Promise.resolve([]), expiryDelta)
         this.shl = shl
         this.season = season
-        this.gameStats = gameStats
+        this.gameReports = gameReports
         this.gameIdToGameUuid = {}
         this.service = this.seasonService.bind(this)
-        this.updateFromStats = this.updateFromStats.bind(this)
+        this.updateFromReport = this.updateFromReport.bind(this)
         this.populateGameIdCache = this.populateGameIdCache.bind(this)
     }
 
     seasonService(): Promise<Game[]> {
         // get all games for season
         return this.shl.getGames(this.season.toString()).then(games => {
+            if (Object.keys(this.gameIdToGameUuid).length == 0) {
+                games.forEach(g => {
+                    this.gameIdToGameUuid[g.game_id] = g.game_uuid
+                })
+            }
             return games.map(g => {
-                return SeasonService.populate(g, this.gameStats.getFromCache(g.game_uuid))
+                const report = this.gameReports.getFromCache(g.game_uuid)
+                return SeasonService.populateFromReport(g, report)
             })
         })
     }
@@ -38,16 +47,13 @@ class SeasonService extends Service<Game[]> {
         })
     }
 
-    updateFromStats(game_uuid: string, stats: GameStats | undefined): Promise<any> {
-        if (!stats) {
-            return Promise.resolve()
-        }
+    updateFromReport(report: GameReport): Promise<any> {
         return this.read().then(allGames => {
-            const gameIndex = allGames.findIndex(e => e.game_uuid == game_uuid)
+            const gameIndex = allGames.findIndex(e => e.game_uuid == report.gameUuid)
             if (gameIndex < 0) {
                 return Promise.resolve([])
             }
-            allGames[gameIndex] = SeasonService.populate(allGames[gameIndex], stats)
+            allGames[gameIndex] = SeasonService.populateFromReport(allGames[gameIndex], report)
             return this.write(allGames, false)
         })
     }
@@ -61,17 +67,21 @@ class SeasonService extends Service<Game[]> {
         return games?.filter(isLive) || []
     }
 
-    static populate(g: Game, stats: GameStats | undefined): Game {
-        if (!stats) {
-            const status = SeasonService.getGameStatusForNonStats(g)
-            return { ...g, status }
+    static populateFromReport(g: Game, report: GameReport | undefined): Game {
+        if (report == undefined) return {
+            ...g,
+            status: SeasonService.getGameStatusForNonStats(g),
         }
+        const status = getStatusFromGameReport(report)
         return {
             ...g,
-            away_team_result: stats.getAwayResult(),
-            home_team_result: stats.getHomeResult(), 
-            played: stats.isPlayed(),
-            status: stats.getGameStatus(),
+            away_team_result: report.awayScore,
+            home_team_result: report.homeScore,
+            played: status == GameStatus.Finished || g.played,
+            penalty_shots: report.period == 99 || g.penalty_shots,
+            overtime: report.period == 4 || g.overtime,
+            gametime: report.gametime,
+            status,
         }
     }
 
@@ -79,6 +89,9 @@ class SeasonService extends Service<Game[]> {
      * Approximate GameStatus given only information in Game
      */
     static getGameStatusForNonStats(g: Game): GameStatus {
+        if (g.played) {
+            return GameStatus.Finished
+        }
         const twoHoursAgo = new Date()
         twoHoursAgo.setHours(twoHoursAgo.getHours() - 2)
         if (new Date(g.start_date_time) < twoHoursAgo) {

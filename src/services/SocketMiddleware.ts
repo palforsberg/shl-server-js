@@ -1,4 +1,5 @@
 import { EventPlayer, EventType, GameInfo, GoalInfo, PenaltyInfo, PeriodInfo } from '../models/GameEvent'
+import { Notifier } from '../Notifier'
 import { WsEventService, WsGameEvent } from '../services/WsEventService'
 import { ShlSocket, WsEvent, WsGame } from '../ShlSocket'
 import { GameReportService, GameReport } from './GameReportService'
@@ -8,19 +9,23 @@ class SocketMiddleware {
     socket: ShlSocket
     season: SeasonService
     wsEventService: WsEventService
-    joinedGameIds: Record<number, WsGame>
-    liveGameService: GameReportService
+    wsGames: Record<number, WsGame>
+    gameReportService: GameReportService
+    notifier: Notifier
 
     constructor(
         season: SeasonService, 
         socket: ShlSocket,
         wsEventService: WsEventService,
-        liveGameService: GameReportService) {
+        gameReportService: GameReportService,
+        notifier: Notifier,
+    ) {
         this.socket = socket
         this.season = season
         this.wsEventService = wsEventService
-        this.liveGameService = liveGameService
-        this.joinedGameIds = {}        
+        this.gameReportService = gameReportService
+        this.notifier = notifier
+        this.wsGames = {}        
 
         this.onGame = this.onGame.bind(this)
         this.onEvent = this.onEvent.bind(this)
@@ -34,16 +39,18 @@ class SocketMiddleware {
     async onGame(m: WsGame) {
         const gameUuid = this.season.gameIdToGameUuid[m.gameId]
         if (gameUuid == undefined) {
-            console.log(`[MIDDLE] Unknown game ${m.homeTeamCode} - ${m.awayTeamCode}`)
+            console.log(`[MIDDLE] Unknown game ${m.homeTeamCode} - ${m.awayTeamCode} ${m.gameId}`)
             return
         }
         console.log(`[MIDDLE] REPORT - ${m.statusString} ${m.homeTeamCode} ${m.homeScore} - ${m.awayScore} ${m.awayTeamCode} ${m.period} ${m.gameState}`)
-        if (!this.joinedGameIds[m.gameId]) {
+        if (!this.wsGames[m.gameId]) {
             this.socket.join(m.gameId)
         }
-        this.joinedGameIds[m.gameId] = m
+        this.wsGames[m.gameId] = m
 
-        await this.liveGameService.store(wsGameToLive(gameUuid, m))
+        const report = wsGameToGameReport(gameUuid, m)
+        await this.gameReportService.store(report)
+        await this.season.updateFromReport(report)
     }
 
     async onEvent(m: WsEvent): Promise<WsGameEvent | undefined> {
@@ -52,7 +59,7 @@ class SocketMiddleware {
             console.log(`[MIDDLE] Unknown game event ${(m as WsGoalEvent)?.team} - ${m.gameId}`)
             return undefined
         }
-        if (this.joinedGameIds[m.gameId] == undefined) {
+        if (this.wsGames[m.gameId] == undefined) {
             console.log(`[MIDDLE] Not joined game event ${JSON.stringify(m)}`)
             return undefined
         }
@@ -62,16 +69,17 @@ class SocketMiddleware {
         if (!wsEvent) return undefined
     
         const isNewEvent = await this.wsEventService.store(wsEvent)
+
         if (isNewEvent && wsEvent.shouldNotify()) {
-            // send notification
+            await this.notifier.sendNotification(wsEvent)
         }
 
         return wsEvent
     }
 
     clearJoinedGameIds() {
-        this.joinedGameIds = {}
-        console.log('[MIDDLE] Cleared joinedGameIds')
+        this.wsGames = {}
+        console.log('[MIDDLE] Cleared wsGames')
     }
     
     private mapEvent(gameUuid: string, m: WsEvent): WsGameEvent | undefined {
@@ -90,10 +98,8 @@ class SocketMiddleware {
             case 'GoolkeeperEvent':
             case 'ShootoutPenaltyShot':
             default:
-                break;
+                return undefined
         }
-
-        return undefined
     }
 
     private mapGoalEvent(gameUuid: string, event: WsGoalEvent): WsGameEvent {
@@ -107,10 +113,8 @@ class SocketMiddleware {
             ...this.getGameInfoFromEvent(gameUuid, event),
             homeResult: parseInt(event.extra.homeForward[0]),
             awayResult: parseInt(event.extra.homeAgainst[0]),
-            periodFormatted: event.period + '',
             team: event.team,
             player,
-            isPowerPlay: event.extra.teamAdvantage.startsWith('PP'),
             teamAdvantage: event.extra.teamAdvantage,
         }
         return new WsGameEvent(EventType.Goal, info, event)
@@ -166,7 +170,7 @@ class SocketMiddleware {
     }
 
     private getGameInfoFromEvent(gameUuid: string, event: WsEvent): GameInfo {
-        const wsGame = this.joinedGameIds[event.gameId]
+        const wsGame = this.wsGames[event.gameId]
         return {
             homeTeamId: wsGame.homeTeamCode,
             awayTeamId: wsGame.awayTeamCode,
@@ -178,7 +182,7 @@ class SocketMiddleware {
     }
 }
 
-function wsGameToLive(gameUuid: string, wsGame: WsGame): GameReport {
+function wsGameToGameReport(gameUuid: string, wsGame: WsGame): GameReport {
     return {
         gameUuid,
         gametime: wsGame.gametime,
@@ -188,6 +192,7 @@ function wsGameToLive(gameUuid: string, wsGame: WsGame): GameReport {
         gameState: wsGame.gameState,
         homeScore: parseInt(wsGame.homeScore),
         awayScore: parseInt(wsGame.awayScore),
+        attendance: wsGame.attendance
     }
 }
 
@@ -210,8 +215,8 @@ interface WsPenaltyEvent extends WsEvent {
 
 // {"eventId":100002,"revision":1,"hash":"16029-100002","channel":16029,"gametime":"00:00","timePeriod":0,"gameId":16029,"realTime":"20221001160348","time":"1664633062.1117","period":2,"class":"Period","type":"Period","description":"Period 2 startade","extra":{"gameStatus":"Playing"},"action":"message","source":"Parser","sourceport":"6600","team":["LHF"],"messagetype":"all","actiontype":"new","teamId":"1a71-1a71gTHKh","status":"new","queue":"parser"}
 // {"eventId":200002,"revision":1,"hash":"16029-200002","channel":16029,"gametime":"20:00","timePeriod":1200,"gameId":16029,"realTime":"20221001160348","time":"1664634941.2949","period":2,"class":"Period","type":"Period","description":"Period 2 avslutad","extra":{"gameStatus":"Finished"},"action":"message","source":"Parser","sourceport":"6600","team":["LHF"],"messagetype":"all","actiontype":"new","teamId":"1a71-1a71gTHKh","status":"new","queue":"parser"}
-// Period != 0 -> Period (Playing + Finished)
-// period == 0 -> game (NotStarted + Ongoing + GameEnded)
+// Period > 0 -> Period (Playing + Finished)
+// period == 0 -> Game (NotStarted + Ongoing + GameEnded)
 interface WsPeriodEvent extends WsEvent {
     extra: {
         gameStatus: string,

@@ -12,6 +12,8 @@ interface GameReport {
 
     homeScore: number
     awayScore: number
+
+    attendance?: string
 }
 
 function getStatusFromGameReport(report: GameReport): GameStatus {

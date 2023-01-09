@@ -60,17 +60,13 @@ const httpServer = app.listen(port, () => console.log(`[MOCK]: Mock is running a
 /**
  * Feed
  */
-const feed: any[] = fs.readFileSync('./log/2022-10-27.log')
+const feed: any[] = fs.readFileSync('./log/2023-01-05.log')
     .toString()
     .split('\n')
-    .filter((e: string) => e !== '"o"' && e != '')
+    .filter((e: string) => e != '')
     .map(JSON.parse)
-    .map(parse)
+    .map((e: any) => JSON.parse(e.data))
 
-
-function parse(str: string): any {
-    return JSON.parse(JSON.parse(str.substring(1))[0])
-}
 const gameReportGames: Record<number, WsGame> = {}
 feed
     .filter((e: any) => e.class == 'GameReport')
@@ -78,6 +74,7 @@ feed
     .forEach((e: WsGame) => {
         gameReportGames[e.gameId] = e
     })
+
 const firstGameReport = feed.find(e => e.class == 'GameReport')
 
 /**

@@ -36,15 +36,16 @@ interface Game {
     game_id: number,
     played: boolean,
     overtime: boolean,
-    penalty_shots: false,
+    penalty_shots: boolean,
     start_date_time: Date,
     season: string,
     game_type: string,
 
     /**
-     * From GameStats
+     * From GameReport
      */
-    status?: GameStatus,    
+    status?: GameStatus,   
+    gametime?: string 
 }
 
 enum GameStatus {

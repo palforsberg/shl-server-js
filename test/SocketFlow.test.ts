@@ -1,10 +1,13 @@
 const fs = require('fs')
 import { EventType, PeriodInfo } from "../src/models/GameEvent"
+import { Notifier } from "../src/Notifier"
 import { GameReportService } from "../src/services/GameReportService"
 import { SeasonService } from "../src/services/SeasonService"
 import { SocketMiddleware } from "../src/services/SocketMiddleware"
+import { UserService } from "../src/services/UserService"
 import { WsEventService, WsGameEvent } from "../src/services/WsEventService"
 import { ShlSocket, WsGame } from "../src/ShlSocket"
+import { getConfig } from "./utils"
 
 jest.mock("fs")
 jest.mock('sockjs-client')
@@ -23,6 +26,7 @@ class MockedSeasonService extends SeasonService {
     }
 }
 const seasonService = new MockedSeasonService()
+const userService = new UserService()
 const liveStatsService = new GameReportService()
 const wsEventService = new WsEventService()
 
@@ -61,7 +65,7 @@ jsonFeed
     })
 
 beforeEach(() => {
-    middleware = new SocketMiddleware(seasonService, socket, wsEventService, liveStatsService)
+    middleware = new SocketMiddleware(seasonService, socket, wsEventService, liveStatsService, new Notifier(getConfig(), userService))
     socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})

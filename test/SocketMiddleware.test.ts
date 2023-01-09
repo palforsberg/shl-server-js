@@ -1,10 +1,13 @@
 const fs = require('fs')
 import { EventType, GoalInfo, PenaltyInfo } from "../src/models/GameEvent"
+import { Notifier } from "../src/Notifier"
 import { GameReportService } from "../src/services/GameReportService"
 import { SeasonService } from "../src/services/SeasonService"
 import { SocketMiddleware, WsGoalEvent, WsPenaltyEvent, WsPeriodEvent } from "../src/services/SocketMiddleware"
+import { UserService } from "../src/services/UserService"
 import { WsEventService } from "../src/services/WsEventService"
 import { ShlSocket, WsEvent, WsGame } from "../src/ShlSocket"
+import { getConfig } from "./utils"
 
 jest.mock("fs")
 jest.mock('sockjs-client')
@@ -13,6 +16,23 @@ fs.promises = {
     readFile: () => Promise.reject({ code: 'ENOENT'}),
     writeFile: () => Promise.resolve({}),
 }
+
+const sentNotification = jest.fn().mockResolvedValue({ failed: [] })
+jest.mock("apns2", () => ({
+    ...jest.requireActual('apns2'),
+    ApnsClient: class MockedApnsClient {
+        constructor() {
+    
+        }
+        on() {}
+        sendMany(notifications: Notification[]) {
+            sentNotification(notifications[0])
+        }
+    },
+    Errors: {
+        error: 'hejsan',
+    }
+}))
 
 class MockedSeasonService extends SeasonService {
     gameIdToGameUuid: Record<number, string>
@@ -32,12 +52,14 @@ let middle: SocketMiddleware
 
 const wsEventService = new WsEventService()
 const gameReportService = new GameReportService()
+const notifier = new Notifier(getConfig(), new UserService())
 
 beforeEach(() => {
-    middle = new SocketMiddleware(new MockedSeasonService(), socket, wsEventService, gameReportService)
+    middle = new SocketMiddleware(new MockedSeasonService(), socket, wsEventService, gameReportService, notifier)
     socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})
+    sentNotification.mockClear()
 })
 
 test('Should join on game', () => {
@@ -49,7 +71,7 @@ test('Should join on game', () => {
 
     // Then
     expect(socket.join).toBeCalled()
-    expect(middle.joinedGameIds[game.gameId]).toBe(game)
+    expect(middle.wsGames[game.gameId]).toBe(game)
 })
 
 test('Should store GameReport', async () => {
@@ -267,7 +289,6 @@ test('Map Goal event', async () => {
     expect((mapped?.info as GoalInfo).player?.familyName).toBe('Ollson Karlsson')
     expect((mapped?.info as GoalInfo).team).toBe('LHF')
     expect((mapped?.info as GoalInfo).teamAdvantage).toBe('PP3')
-    expect((mapped?.info as GoalInfo).isPowerPlay).toBe(true)
 })
 
 test('Map Penalty event', async () => {
@@ -344,6 +365,33 @@ test('Map Penalty shot', async () => {
     expect(mapped).toBeUndefined()
 })
 
+test('Should send notification', async () => {
+    // Given
+    const game = getGame()
+    middle.onGame(game)
+    const event: WsGoalEvent = {
+        ...getEvent(),
+        class: 'Goal',
+        team: 'LHF',
+        location: { x: 123, y: -123 },
+        extra: {
+            scorerLong: '123 Olle Ollson Karlsson',
+            teamAdvantage: 'PP3',
+            homeForward: ['13'],
+            homeAgainst: ['-123'],
+        }
+    }
+
+    // When
+    const mapped = await middle.onEvent(event)
+
+    // Then
+    expect(mapped).toBeDefined()
+    expect(mapped?.type).toBe(EventType.Goal)
+
+    expect(sentNotification).toBeCalledTimes(1)
+})
+
 function getEvent(): WsEvent {
     return {
         class: 'Period',
@@ -368,6 +416,6 @@ function getGame(): WsGame {
         statusString: 'P1 / 00:39',
         gameState: 'Ongoing',
         period: 1,
-        arena: 'Coop Arena',
+        arena: 'COOP Arena',
     }
 }

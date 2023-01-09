@@ -34,11 +34,10 @@ test('finds home team scored', () => {
         homeResult: newGames.getHomeResult(),
         awayResult: newGames.getAwayResult(),
         periodNumber: newGames.getCurrentPeriodNumber(),
-        periodFormatted: newGames.getCurrentPeriodFormatted(),
         player: undefined,
         team: newGames.getHomeTeamId(),
         teamAdvantage: '',
-        isPowerPlay: false } as GoalInfo)
+    } as GoalInfo)
 });
 
 test('finds away team scored', () => {
@@ -49,7 +48,6 @@ test('finds away team scored', () => {
     expect(result?.type).toBe(EventType.Goal)
 });
 
-
 test('finds home team scored during powerplay', () => {
     const oldGames = getGame()
     const newGames = getGame()
@@ -57,7 +55,6 @@ test('finds home team scored during powerplay', () => {
     newGames.recaps!.gameRecap!.awayPPG++
     const result = GameComparer.compare([oldGames, newGames])[0]
     expect(result?.type).toBe(EventType.Goal)
-    expect((result?.info as GoalInfo).isPowerPlay).toBe(true)
 });
 
 test('game going from Intermission to Ongoing should not create event', () => {
