@@ -55,9 +55,9 @@ class RestService {
          this.app.get('/game/:game_uuid/:game_id', async (req: any, res: any) => {
             let stats = this.statsService.getFromCache(req.params.game_uuid)
             if (stats != undefined) {
-               const report = this.gameReportService.getFromCache(req.params.game_uuid)
-               stats!.report = report
-               if (report && stats.recaps?.gameRecap != undefined) {
+               const report = await this.gameReportService.read(req.params.game_uuid)
+               stats.report = report
+               if (report != undefined && stats.recaps?.gameRecap != undefined) {
                   stats.recaps!.gameRecap.homeG = report.homeScore
                   stats.recaps!.gameRecap.awayG = report.awayScore
                   stats.status = getStatusFromGameReport(report)
