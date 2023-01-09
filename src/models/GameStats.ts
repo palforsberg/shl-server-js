@@ -72,7 +72,7 @@ class GameStatsIf {
     /**
      * Decorated
      */
-    status?: GameStatus
+    status?: GameStatus // mostly from GameReport, but derived from GameStats in some cases
     events?: GameEvent[]
     report?: GameReport
 
@@ -99,6 +99,7 @@ class GameStats extends GameStatsIf {
             // playersByTeam is empty array if empty, convert to undefined instead
             this.playersByTeam = undefined
         }
+        this.status = this.getGameStatus()
 
         this.getHomeTeamId = this.getHomeTeamId.bind(this)
         this.getAwayTeamId = this.getAwayTeamId.bind(this)
@@ -114,6 +115,7 @@ class GameStats extends GameStatsIf {
         this.isPaused = this.isPaused.bind(this)
         this.isComing = this.isComing.bind(this)
         this.isShootout = this.isShootout.bind(this)
+        this.getGameStatus = this.getGameStatus.bind(this)
         this.getHomePlayers = this.getHomePlayers.bind(this)
         this.getAwayPlayers = this.getAwayPlayers.bind(this)
         this.getPlayersForTeam = this.getPlayersForTeam.bind(this)
@@ -215,6 +217,35 @@ class GameStats extends GameStatsIf {
     getCurrentPeriodNumber(): number {
       const recap = this.getCurrentPeriod()
       return recap?.periodNumber || 0
+    }
+
+    getGameStatus(): GameStatus {
+      if (this.isPlayed()) {
+        return GameStatus.Finished
+      }
+      if (this.isPaused()) {
+        return GameStatus.Intermission
+      }
+      if (this.isOvertime()) {
+        return GameStatus.Overtime
+      }
+      if (!this.isLive()) {
+        return GameStatus.Coming
+      }
+      var period = this.getCurrentPeriodNumber()
+      switch (period) {
+        case 99:
+          return GameStatus.Shootout
+        case 4:
+          return GameStatus.Overtime
+        case 3:
+          return GameStatus.Period3
+        case 2:
+          return GameStatus.Period2
+        case 1:
+        default:
+          return GameStatus.Period1
+      }
     }
 
     private getPlayersForTeam(team?: string): Player[] {
