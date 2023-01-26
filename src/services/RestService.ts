@@ -8,6 +8,7 @@ import { GameStats } from "../models/GameStats";
 import { WsEventService } from "./WsEventService";
 import { GameReportService, getStatusFromGameReport } from "./GameReportService";
 import { Config } from "../models/Config";
+import { Game } from "../models/Game";
 
 class RestService {
     private config: Config
@@ -49,7 +50,18 @@ class RestService {
             if (!season) {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
-            return season.read().then(s => res.json(s))
+            return season.read().then(s => {
+               const decorated = s.map((g: Game) => {
+                  const stats = this.statsService.getFromCache(g.game_uuid)
+                  return {
+                     ...g,
+                     status: stats?.status ?? g.status,
+                     home_team_result: stats?.getHomeResult() ?? g.home_team_result,
+                     away_team_result: stats?.getAwayResult() ?? g.away_team_result,
+                  } as Game
+               })
+               return res.json(decorated)
+            })
          })
          
          this.app.get('/game/:game_uuid/:game_id', async (req: any, res: any) => {
