@@ -3,6 +3,7 @@ import { Notifier } from '../Notifier'
 import { WsEventService, WsGameEvent } from '../services/WsEventService'
 import { ShlSocket, WsEvent, WsGame } from '../ShlSocket'
 import { GameReportService, GameReport } from './GameReportService'
+import { GameStatsService } from './GameStatsService'
 import { SeasonService } from './SeasonService'
 
 class SocketMiddleware {
@@ -11,6 +12,7 @@ class SocketMiddleware {
     wsEventService: WsEventService
     wsGames: Record<number, WsGame>
     gameReportService: GameReportService
+    statsService: GameStatsService
     notifier: Notifier
 
     constructor(
@@ -19,12 +21,14 @@ class SocketMiddleware {
         wsEventService: WsEventService,
         gameReportService: GameReportService,
         notifier: Notifier,
+        statsService: GameStatsService,
     ) {
         this.socket = socket
         this.season = season
         this.wsEventService = wsEventService
         this.gameReportService = gameReportService
         this.notifier = notifier
+        this.statsService = statsService
         this.wsGames = {}        
 
         this.onGame = this.onGame.bind(this)
@@ -43,9 +47,6 @@ class SocketMiddleware {
             return
         }
         console.log(`[MIDDLE] REPORT - ${m.statusString} ${m.homeTeamCode} ${m.homeScore} - ${m.awayScore} ${m.awayTeamCode} ${m.period} ${m.gameState}`)
-        if (!this.wsGames[m.gameId]) {
-            this.socket.join(m.gameId)
-        }
         this.wsGames[m.gameId] = m
 
         const report = wsGameToGameReport(gameUuid, m)
@@ -59,10 +60,7 @@ class SocketMiddleware {
             console.log(`[MIDDLE] Unknown game event ${(m as WsGoalEvent)?.team} - ${m.gameId}`)
             return undefined
         }
-        if (this.wsGames[m.gameId] == undefined) {
-            console.log(`[MIDDLE] Not joined game event ${JSON.stringify(m)}`)
-            return undefined
-        }
+
         console.log(`[MIDDLE] EVENT - ${m.class} ${m.gametime} ${(m as WsGoalEvent)?.team} ${m.description} [${m.eventId} ${m.revision}]`)
 
         const wsEvent = this.mapEvent(gameUuid, m)
@@ -171,6 +169,17 @@ class SocketMiddleware {
 
     private getGameInfoFromEvent(gameUuid: string, event: WsEvent): GameInfo {
         const wsGame = this.wsGames[event.gameId]
+        if (!wsGame) {
+            const stats = this.statsService.getFromCache(gameUuid)
+            return {
+                homeTeamId: stats?.getHomeTeamId() ?? "",
+                awayTeamId: stats?.getAwayTeamId() ?? "",
+                homeResult: stats?.getHomeResult() ?? 0,
+                awayResult: stats?.getAwayResult() ?? 0,
+                periodNumber: event.period,
+                game_uuid: gameUuid,
+            }
+        }
         return {
             homeTeamId: wsGame.homeTeamCode,
             awayTeamId: wsGame.awayTeamCode,

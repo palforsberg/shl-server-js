@@ -67,6 +67,7 @@ class GameLoop {
          */
         if (this.gamesToFetch.length > 0) {
             await this.socket.open()
+            this.gamesToFetch.forEach(e => this.socket.join(e.game_id))
         }
 
         for (const lg of this.gamesToFetch) {

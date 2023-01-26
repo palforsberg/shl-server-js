@@ -48,7 +48,7 @@ const notifier = new Notifier(config, userService)
 notifier.setOnError(userService.handleNotificationError)
 
 const socket = new ShlSocket(config.shl_socket_path)
-const middleware = new SocketMiddleware(seasonServices[currentSeason], socket, wsEventService, gameReportService, notifier)
+const middleware = new SocketMiddleware(seasonServices[currentSeason], socket, wsEventService, gameReportService, notifier, statsService)
 
 FileAppend.enabled = config.production
 

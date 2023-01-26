@@ -57,6 +57,7 @@ beforeEach(() => {
     // @ts-ignore
     gameStatsService.db.write({})
     socket.open = jest.fn()
+    socket.join = jest.fn()
     socket.close = jest.fn()
 })
 
@@ -248,6 +249,7 @@ test('Start socket when live games', async () => {
 
     // Then - socket should be opened
     expect(socket.open).toBeCalled()
+    expect(socket.join).toBeCalledTimes(1)
     expect(socket.close).toBeCalledTimes(0)
 })
 

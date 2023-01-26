@@ -9,10 +9,12 @@ class ShlSocket {
     private _onEvent: (arg0: WsEvent) => Promise<any> = e => Promise.resolve()
     private _onGameReport: (arg0: WsGame) => Promise<any> = e => Promise.resolve()
     private _onClose: VoidFunction = () => {}
+    private joinedGames: Record<number, string>
 
     constructor(url: string) {
         this.url = url
         this.fileAppender = new FileAppend('./log')
+        this.joinedGames = {}
 
         this.onEvent = this.onEvent.bind(this)
         this.onGameReport = this.onGameReport.bind(this)
@@ -34,7 +36,10 @@ class ShlSocket {
     }
 
     join(gameId: number) {
-        this.send({ action: 'join', channel: gameId })
+        if (!this.joinedGames[gameId]) {
+            this.send({ action: 'join', channel: gameId })
+            this.joinedGames[gameId] = 'joined'
+        }
     }
 
     send(obj: any) {
@@ -46,6 +51,7 @@ class ShlSocket {
     close() {
         if (this.ws == undefined) return
         console.log('[SOCKET] Closing')
+        this.joinedGames = {}
         this.ws?.close()
     }
 
