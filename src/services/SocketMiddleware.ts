@@ -10,7 +10,6 @@ class SocketMiddleware {
     socket: ShlSocket
     season: SeasonService
     wsEventService: WsEventService
-    wsGames: Record<number, WsGame>
     gameReportService: GameReportService
     statsService: GameStatsService
     notifier: Notifier
@@ -29,7 +28,6 @@ class SocketMiddleware {
         this.gameReportService = gameReportService
         this.notifier = notifier
         this.statsService = statsService
-        this.wsGames = {}        
 
         this.onGame = this.onGame.bind(this)
         this.onEvent = this.onEvent.bind(this)
@@ -47,11 +45,10 @@ class SocketMiddleware {
             return
         }
         console.log(`[MIDDLE] REPORT - ${m.statusString} ${m.homeTeamCode} ${m.homeScore} - ${m.awayScore} ${m.awayTeamCode} ${m.period} ${m.gameState}`)
-        this.wsGames[m.gameId] = m
 
         const report = wsGameToGameReport(gameUuid, m)
         await this.gameReportService.store(report)
-        await this.season.updateFromReport(report)
+        this.season.cleanDecorated()
     }
 
     async onEvent(m: WsEvent): Promise<WsGameEvent | undefined> {
@@ -59,6 +56,9 @@ class SocketMiddleware {
         if (gameUuid == undefined) {
             console.log(`[MIDDLE] Unknown game event ${(m as WsGoalEvent)?.team} - ${m.gameId}`)
             return undefined
+        }
+        if (this.gameReportService.getFromCache(gameUuid) == null) {
+            console.log(`[MIDDLE] Event for game with no report ${m.gameId}`)
         }
 
         console.log(`[MIDDLE] EVENT - ${m.class} ${m.gametime} ${(m as WsGoalEvent)?.team} ${m.description} [${m.eventId} ${m.revision}]`)
@@ -75,11 +75,6 @@ class SocketMiddleware {
         return wsEvent
     }
 
-    clearJoinedGameIds() {
-        this.wsGames = {}
-        console.log('[MIDDLE] Cleared wsGames')
-    }
-    
     private mapEvent(gameUuid: string, m: WsEvent): WsGameEvent | undefined {
         switch (m.class) {
             case 'Goal':
@@ -168,7 +163,7 @@ class SocketMiddleware {
     }
 
     private getGameInfoFromEvent(gameUuid: string, event: WsEvent): GameInfo {
-        const wsGame = this.wsGames[event.gameId]
+        const wsGame = this.gameReportService.getFromCache(gameUuid)
         if (!wsGame) {
             const stats = this.statsService.getFromCache(gameUuid)
             return {
@@ -181,10 +176,10 @@ class SocketMiddleware {
             }
         }
         return {
-            homeTeamId: wsGame.homeTeamCode,
-            awayTeamId: wsGame.awayTeamCode,
-            homeResult: parseInt(wsGame.homeScore),
-            awayResult: parseInt(wsGame.awayScore),
+            homeTeamId: wsGame.homeTeamCode ?? "",
+            awayTeamId: wsGame.awayTeamCode ?? "",
+            homeResult: wsGame.homeScore,
+            awayResult: wsGame.awayScore,
             periodNumber: event.period,
             game_uuid: gameUuid,
         }
@@ -199,6 +194,8 @@ function wsGameToGameReport(gameUuid: string, wsGame: WsGame): GameReport {
         period: wsGame.period,
         statusString: wsGame.statusString,
         gameState: wsGame.gameState,
+        homeTeamCode: wsGame.homeTeamCode,
+        awayTeamCode: wsGame.awayTeamCode,
         homeScore: parseInt(wsGame.homeScore),
         awayScore: parseInt(wsGame.awayScore),
         attendance: wsGame.attendance

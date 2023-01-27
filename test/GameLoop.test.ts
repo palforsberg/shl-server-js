@@ -34,7 +34,7 @@ const shl = new SHL(config, 1)
 const userService = new UserService()
 const reportService = new GameReportService()
 const gameStatsService = new GameStatsService(shl)
-const seasonService = new SeasonService(season, 0, shl, reportService)
+const seasonService = new SeasonService(season, 0, shl, reportService, gameStatsService)
 const standingsService = new StandingService(season, 4, shl)
 const socket = new ShlSocket(config.shl_socket_path)
 

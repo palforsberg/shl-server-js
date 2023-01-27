@@ -10,6 +10,8 @@ interface GameReport {
     gameState: string
     period: number
 
+    homeTeamCode?: string
+    awayTeamCode?: string
     homeScore: number
     awayScore: number
 

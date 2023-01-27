@@ -50,18 +50,7 @@ class RestService {
             if (!season) {
                return res.status(404).send('Could not find season ' + req.params.season)
             }
-            return season.read().then(s => {
-               const decorated = s.map((g: Game) => {
-                  const stats = this.statsService.getFromCache(g.game_uuid)
-                  return {
-                     ...g,
-                     status: stats?.status ?? g.status,
-                     home_team_result: stats?.getHomeResult() ?? g.home_team_result,
-                     away_team_result: stats?.getAwayResult() ?? g.away_team_result,
-                  } as Game
-               })
-               return res.json(decorated)
-            })
+            return season.getDecorated().then(e => res.json(e))
          })
          
          this.app.get('/game/:game_uuid/:game_id', async (req: any, res: any) => {

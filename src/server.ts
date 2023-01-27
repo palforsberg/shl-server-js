@@ -38,10 +38,10 @@ const wsEventService = new WsEventService()
 const gameReportService = new GameReportService()
 const statsService = new GameStatsService(shl)
 const seasonServices = {
-   2022: new SeasonService(currentSeason, 60 * 10, shl, gameReportService),
-   2021: new SeasonService(2021, -1, shl, gameReportService),
-   2020: new SeasonService(2020, -1, shl, gameReportService),
-   2019: new SeasonService(2019, -1, shl, gameReportService),
+   2022: new SeasonService(currentSeason, 60 * 10, shl, gameReportService, statsService),
+   2021: new SeasonService(2021, -1, shl, gameReportService, statsService),
+   2020: new SeasonService(2020, -1, shl, gameReportService, statsService),
+   2019: new SeasonService(2019, -1, shl, gameReportService, statsService),
 }
 
 const notifier = new Notifier(config, userService)
@@ -59,7 +59,6 @@ socket.onGameReport(g => {
    return middleware.onGame(g)
 })
 socket.onClose(() => {
-   middleware.clearJoinedGameIds()
 })
 
 const gameLoop = new GameLoop(

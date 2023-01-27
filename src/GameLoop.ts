@@ -72,6 +72,7 @@ class GameLoop {
 
         for (const lg of this.gamesToFetch) {
             const stats = await this.gameStatsService.updateGame(lg.game_uuid, lg.game_id)
+            this.seasonService.cleanDecorated()
 
             if (stats?.isPlayed() ?? false) {
                 this.removeGameToFetch(stats!.game_uuid)

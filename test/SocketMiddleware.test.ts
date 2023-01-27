@@ -44,6 +44,7 @@ class MockedSeasonService extends SeasonService {
         this.gameIdToGameUuid = {
             123: 'gameUuid_123',
         }
+        this.cleanDecorated = jest.fn()
     }
 }
 
@@ -62,27 +63,30 @@ beforeEach(() => {
     socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})
+    gameReportService.db.write({})
+    statsService.db.write({})
     sentNotification.mockClear()
 })
 
-// test('Should join on game', () => {
-//     // Given
-//     const game = getGame()
+test('Should clear seasonservice on gamereport', async () => {
+    // Given
+    const game = getGame()
     
-//     // When
-//     middle.onGame(game)
+    // When
+    await middle.onGame(game)
 
-//     // Then
-//     expect(socket.join).toBeCalled()
-//     expect(middle.wsGames[game.gameId]).toBe(game)
-// })
+    // Then
+    const report = await gameReportService.read('gameUuid_123')
+    expect(report).toBeDefined()
+    expect(middle.season.cleanDecorated).toBeCalledTimes(1)
+})
 
 test('Should store GameReport', async () => {
     // Given
     const game = getGame()
     
     // When
-    middle.onGame(game)
+    await  middle.onGame(game)
 
     // Then
     const gameReport = await gameReportService.read('gameUuid_123')
@@ -94,7 +98,7 @@ test('Should store GameReport', async () => {
 test('Should store event', async () => {
     // Given
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsPeriodEvent = {
         ...getEvent(),
         extra: {
@@ -114,7 +118,7 @@ test('Should store event', async () => {
 test('Should not store some event', async () => {
     // Given
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsPeriodEvent = {
         ...getEvent(),
         class: 'Shot',
@@ -134,7 +138,7 @@ test('Should not store some event', async () => {
 test('Should overwrite event with higher revision', async () => {
     // Given - two events with same eventId, but different revisions
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsPeriodEvent = {
         ...getEvent(),
         extra: {
@@ -165,7 +169,7 @@ test('Should overwrite event with higher revision', async () => {
 test('Should not overwrite event with lower revision', async () => {
     // Given - two events with same eventId, but different revisions
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsPeriodEvent = {
         ...getEvent(),
         extra: {
@@ -243,7 +247,7 @@ test('Map unhandled class', async () => {
 test('Map GameStart event', async () => {
     // Given
     const game = getGame()
-    middle.onGame(game)
+    await middle.onGame(game)
     const event: WsPeriodEvent = {
         ...getEvent(),
         extra: {
@@ -264,7 +268,7 @@ test('Map GameStart event', async () => {
 test('Map Goal event', async () => {
     // Given
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsGoalEvent = {
         ...getEvent(),
         class: 'Goal',
@@ -297,7 +301,7 @@ test('Map Goal event', async () => {
 test('Map Penalty event', async () => {
     // Given
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsPenaltyEvent = {
         ...getEvent(),
         class: 'Penalty',
@@ -326,7 +330,7 @@ test('Map Penalty event', async () => {
 test('Map Penalty event with unusual description', async () => {
     // Given
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsPenaltyEvent = {
         ...getEvent(),
         class: 'Penalty',
@@ -353,7 +357,7 @@ test('Map Penalty event with unusual description', async () => {
 test('Map Penalty shot', async () => {
     // Given
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsPenaltyEvent = {
         ...getEvent(),
         class: 'Penalty',
@@ -371,7 +375,7 @@ test('Map Penalty shot', async () => {
 test('Should send notification', async () => {
     // Given
     const game = getGame()
-    middle.onGame(game)
+   await  middle.onGame(game)
     const event: WsGoalEvent = {
         ...getEvent(),
         class: 'Goal',

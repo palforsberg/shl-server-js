@@ -10,15 +10,13 @@ import { SeasonService } from "../src/services/SeasonService"
 import { GameStatsService } from "../src/services/GameStatsService"
 import { RestService } from "../src/services/RestService"
 import { StandingService } from "../src/services/StandingService"
-import { TeamsService } from "../src/services/TeamsService"
 import { UserService } from "../src/services/UserService"
 import { SHL } from "../src/ShlClient"
-import { getConfig, getGame, getGameStats, getStanding, mockAxios } from "./utils"
+import { getConfig, getGame, getGameReport, getGameStats, getStanding, mockAxios } from "./utils"
 import { GameStats } from '../src/models/GameStats';
 import { GameStatus } from '../src/models/Game';
-import { EventService } from '../src/services/EventService';
 import { WsEventService, WsGameEvent } from '../src/services/WsEventService';
-import { GameReportService } from '../src/services/GameReportService';
+import { GameReport, GameReportService } from '../src/services/GameReportService';
 import { EventType, GameEvent } from '../src/models/GameEvent';
 
 jest.mock("fs")
@@ -38,12 +36,12 @@ const shl = new SHL(config, 1)
 const userService = new UserService()
 const gameStatsService = new GameStatsService(shl)
 const reportService = new GameReportService()
-const seasonService = new SeasonService(season, 0, shl, reportService)
+const seasonService = new SeasonService(season, 0, shl, reportService, gameStatsService)
 const seasonServices = {
     2030: seasonService,
-    2021: new SeasonService(2021, -1, shl, reportService),
-    2020: new SeasonService(2020, -1, shl, reportService),
-    2019: new SeasonService(2019, -1, shl, reportService),
+    2021: new SeasonService(2021, -1, shl, reportService, gameStatsService),
+    2020: new SeasonService(2020, -1, shl, reportService, gameStatsService),
+    2019: new SeasonService(2019, -1, shl, reportService, gameStatsService),
  }
 const standingsService = new StandingService(season, 4, shl)
 const wsEventService = new WsEventService()
@@ -89,8 +87,36 @@ test('Get season', async () => {
 
     // Then
     expect(res.json).toHaveBeenCalledTimes(1)
+    game[0].status = GameStatus.Coming
     expect(JSON.stringify(res.body)).toEqual(JSON.stringify(game))
 })
+
+test('Get season decorate with report', async () => {
+    // Given
+    const game = [getGame()]
+    await seasonService.write(game)
+    const report = getGameReport()
+    report.gameUuid = game[0].game_uuid
+    report.gametime = '13:37'
+    report.gameState = 'ShootOut'
+    await reportService.store(report)
+    seasonService.cleanDecorated()
+
+    const req = new Request()
+    req.setParams('season', season.toString())
+    const res = new Response()
+
+    // When
+    await getServices['/games/:season'](req, res)
+
+    // Then
+    expect(res.json).toHaveBeenCalledTimes(1)
+    game[0].home_team_result = report.homeScore
+    game[0].status = GameStatus.Shootout
+    game[0].gametime = report.gametime
+    expect(res.body).toStrictEqual(game)
+})
+
 
 test('Get season with non-numeric param', async () => {
        // Given
