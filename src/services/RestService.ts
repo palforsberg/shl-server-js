@@ -8,7 +8,7 @@ import { GameStats } from "../models/GameStats";
 import { WsEventService } from "./WsEventService";
 import { GameReportService, getStatusFromGameReport } from "./GameReportService";
 import { Config } from "../models/Config";
-import { Game } from "../models/Game";
+import { PlayerService } from "./PlayerService";
 
 class RestService {
     private config: Config
@@ -18,6 +18,7 @@ class RestService {
     private statsService: GameStatsService
     private wsEventService: WsEventService
     private gameReportService: GameReportService
+    private playerService: PlayerService
     private app: any
 
     constructor(
@@ -29,6 +30,7 @@ class RestService {
         statsService: GameStatsService,
         wsEventService: WsEventService,
         gameReportService: GameReportService,
+        playerService: PlayerService,
     ) {
         this.config = config
         this.app = app
@@ -38,6 +40,7 @@ class RestService {
         this.statsService = statsService
         this.wsEventService = wsEventService
         this.gameReportService = gameReportService
+        this.playerService = playerService
     }
 
     startListen(port: number) {
@@ -54,19 +57,18 @@ class RestService {
          })
          
          this.app.get('/game/:game_uuid/:game_id', async (req: any, res: any) => {
-            let stats = this.statsService.getFromCache(req.params.game_uuid)
-            if (stats != undefined) {
-               const report = await this.gameReportService.read(req.params.game_uuid)
-               stats.report = report
-               if (report != undefined && stats.recaps?.gameRecap != undefined) {
-                  stats.recaps!.gameRecap.homeG = report.homeScore
-                  stats.recaps!.gameRecap.awayG = report.awayScore
-                  stats.status = getStatusFromGameReport(report)
-               }
-               stats!.events = await this.wsEventService.read(req.params.game_uuid)
-               return res.json(stats)
+            let stats = this.statsService.getFromCache(req.params.game_uuid) ?? GameStats.empty()
+            const report = await this.gameReportService.read(req.params.game_uuid)
+            stats.report = report
+            if (report) {
+               stats.status = getStatusFromGameReport(report)
             }
-            return res.json(GameStats.empty())
+            if (report != undefined && stats.recaps?.gameRecap != undefined) {
+               stats.recaps!.gameRecap.homeG = report.homeScore
+               stats.recaps!.gameRecap.awayG = report.awayScore
+            }
+            stats!.events = await this.wsEventService.read(req.params.game_uuid)
+            return res.json(stats)
          })
 
          this.app.post('/game/fetch/:game_uuid/:game_id/:pass', async (req: any, res: any) => {
@@ -91,6 +93,15 @@ class RestService {
                   return res.json(s)
                }
             }) 
+         })
+
+         this.app.get('/playoffs/:season', (req: any, res: any) => {
+            return res.sendFile('./playoff.json', { root: process.cwd() })
+         })
+
+         this.app.get('/players/:team', async (req: any, res: any) => {
+            var players = await this.playerService.getPlayersForTeam(req.params.team)
+            return res.json(players)
          })
          
          this.app.post('/user', (req: any, res: any) => {

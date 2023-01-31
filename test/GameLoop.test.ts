@@ -6,6 +6,7 @@ import { GameStats } from "../src/models/GameStats";
 import { Service } from "../src/Service";
 import { GameReportService } from "../src/services/GameReportService";
 import { GameStatsService } from "../src/services/GameStatsService";
+import { PlayerService } from "../src/services/PlayerService";
 import { ShlSocket } from "../src/ShlSocket";
 import { getConfig, getGame, getGameStats, getStanding, mockAxios, mockAxiosFn } from "./utils";
 
@@ -37,12 +38,14 @@ const gameStatsService = new GameStatsService(shl)
 const seasonService = new SeasonService(season, 0, shl, reportService, gameStatsService)
 const standingsService = new StandingService(season, 4, shl)
 const socket = new ShlSocket(config.shl_socket_path)
+const playerService = new PlayerService(seasonService, gameStatsService)
 
 const looper = new GameLoop(
     seasonService,
     gameStatsService,
     standingsService,
-    socket
+    socket,
+    playerService
 )
 
 jest.setTimeout(20_000_000)

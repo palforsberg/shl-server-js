@@ -18,6 +18,7 @@ import { GameStatus } from '../src/models/Game';
 import { WsEventService, WsGameEvent } from '../src/services/WsEventService';
 import { GameReport, GameReportService } from '../src/services/GameReportService';
 import { EventType, GameEvent } from '../src/models/GameEvent';
+import { PlayerService } from '../src/services/PlayerService';
 
 jest.mock("fs")
 jest.mock("axios")
@@ -45,6 +46,7 @@ const seasonServices = {
  }
 const standingsService = new StandingService(season, 4, shl)
 const wsEventService = new WsEventService()
+const playerService = new PlayerService(seasonService, gameStatsService)
 
 const getServices: Record<string, (a: any, b: any) => void> = {}
 const postServices: Record<string, (a: any, b: any) => void> = {}
@@ -64,6 +66,7 @@ const restService = new RestService(
     gameStatsService,
     wsEventService,
     reportService,
+    playerService,
 )
 
 restService.setupRoutes()
@@ -72,6 +75,8 @@ restService.startListen(3333)
 beforeEach(async () => {
     await userService.db.write([])
     await gameStatsService.db.write({})
+    await reportService.db.write({})
+    await wsEventService.db.write({})
 })
 
 test('Get season', async () => {
@@ -242,7 +247,9 @@ test('Get non existing game stats', async () => {
 
     // Then
     expect(res.json).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(res.body)).toBe(JSON.stringify(GameStats.empty()))
+    const empty = GameStats.empty()
+    empty.events = []
+    expect(JSON.stringify(res.body)).toBe(JSON.stringify(empty))
 })
 
 test('Get non existing game stats, not found at all', async () => {
@@ -259,7 +266,9 @@ test('Get non existing game stats, not found at all', async () => {
 
     // Then
     expect(res.json).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(res.body)).toBe(JSON.stringify(GameStats.empty()))
+    const empty = GameStats.empty()
+    empty.events = []
+    expect(JSON.stringify(res.body)).toBe(JSON.stringify(empty))
 })
 
 test('Get game stats, no params', async () => {
@@ -274,7 +283,9 @@ test('Get game stats, no params', async () => {
 
     // Then
     expect(res.json).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(res.body)).toBe(JSON.stringify(GameStats.empty()))
+    const empty = GameStats.empty()
+    empty.events = []
+    expect(JSON.stringify(res.body)).toBe(JSON.stringify(empty))
 })
 
 test('Post user', async () => {

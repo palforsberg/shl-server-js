@@ -17,6 +17,7 @@ import { SocketMiddleware } from './services/SocketMiddleware'
 import { WsEventService } from './services/WsEventService'
 import { FileAppend } from './services/FileAppend'
 import { GameReportService } from './services/GameReportService'
+import { PlayerService } from './services/PlayerService'
 
 const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
 require('events').EventEmitter.defaultMaxListeners = config.max_listeners || 100
@@ -43,6 +44,7 @@ const seasonServices = {
    2020: new SeasonService(2020, -1, shl, gameReportService, statsService),
    2019: new SeasonService(2019, -1, shl, gameReportService, statsService),
 }
+const playerService = new PlayerService(seasonServices[currentSeason], statsService)
 
 const notifier = new Notifier(config, userService)
 notifier.setOnError(userService.handleNotificationError)
@@ -65,7 +67,9 @@ const gameLoop = new GameLoop(
    seasonServices[currentSeason],
    statsService,
    standingsService,
-   socket)
+   socket,
+   playerService,
+)
 
 const app = express().use(express.json())
 
@@ -78,6 +82,7 @@ const restService = new RestService(
    statsService,
    wsEventService,
    gameReportService,
+   playerService,
 )
 
 restService.setupRoutes()
@@ -91,6 +96,7 @@ try {
    seasonServices[currentSeason].populateGameIdCache()
       .then(() => statsService.db.read())
       .then(() => wsEventService.db.read())
+      .then(() => playerService.update())
       .then(() => gameLoop.loop())
 } catch (e) {
    console.log('[SERVER] Loop threw ', e)

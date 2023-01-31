@@ -3,6 +3,7 @@ import { SeasonService } from "./services/SeasonService";
 import { StandingService } from "./services/StandingService";
 import { GameStatsService } from "./services/GameStatsService";
 import { ShlSocket } from "./ShlSocket";
+import { PlayerService } from "./services/PlayerService";
 
 class GameLoop {
     private seasonService: SeasonService
@@ -11,12 +12,14 @@ class GameLoop {
     private socket: ShlSocket
 
     private gamesToFetch: Game[]
+    private playerService: PlayerService
 
     constructor(
         seasonService: SeasonService,
         gameStatsService: GameStatsService,
         currentStanding: StandingService,
-        socket: ShlSocket
+        socket: ShlSocket,
+        playerService: PlayerService,
     ) {
 
          this.loop = this.loop.bind(this)
@@ -28,6 +31,7 @@ class GameLoop {
          this.standingsService = currentStanding
          this.gameStatsService = gameStatsService
          this.socket = socket
+         this.playerService = playerService
 
          this.gamesToFetch = []
     }
@@ -76,6 +80,7 @@ class GameLoop {
 
             if (stats?.isPlayed() ?? false) {
                 this.removeGameToFetch(stats!.game_uuid)
+                await this.playerService.update()
             }
         }
 
