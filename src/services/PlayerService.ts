@@ -60,13 +60,18 @@ class PlayerService extends Service<Record<number, Player>> {
                         line: e.line,
                     }
 
+                    const toiSeconds = PlayerService.parseToi(e.toi)
+                    const hasPlayed = toiSeconds > 0 || (e.tot_svs ?? 0) > 0
+
                     // Player stats
                     player.g =          PlayerService.add(player.g, e.g)
                     player.a =          PlayerService.add(player.a, e.a)
+                    player.sog =        PlayerService.add(player.sog, e.sog)
                     player.pim =        PlayerService.add(player.pim, e.pim)
                     player.pop =        PlayerService.add(player.pop, e.pop)
                     player.nep =        PlayerService.add(player.nep, e.nep)
-                    player.toiSeconds = PlayerService.add(player.toiSeconds, PlayerService.parseToi(e.toi))
+                    player.toiSeconds = PlayerService.add(player.toiSeconds, toiSeconds)
+                    player.gp =         PlayerService.add(player.gp, hasPlayed ? 1 : 0)
 
                     // GK stats
                     player.tot_ga =     PlayerService.add(player.tot_ga, e.tot_ga)

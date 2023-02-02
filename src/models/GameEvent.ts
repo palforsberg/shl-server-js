@@ -73,7 +73,7 @@ class GameEvent {
                 const victor = this.info.homeResult > this.info.awayResult ? this.info.homeTeamId : this.info.awayTeamId
                 const userFavorsVictor = userTeam.includes(victor)
                 if (userFavorsVictor) {
-                    return `${TeamsService.getShortName(victor)} segrar! 🎉`
+                    return `${TeamsService.getShortName(victor)} vinner! 🎉`
                 } else {
                     return `${TeamsService.getShortName(victor)} vann matchen`
                 } 
@@ -81,7 +81,7 @@ class GameEvent {
             case EventType.Goal: {
                 const excited = userTeam.includes((this.info as GoalInfo)?.team ?? '')
                 if (excited) {
-                    return `MÅÅÅL för ${TeamsService.getShortName((this.info as GoalInfo)?.team)}!`
+                    return `MÅÅÅL för ${TeamsService.getShortName((this.info as GoalInfo)?.team)}! 🎉`
                 } else {
                     return `Mål för ${TeamsService.getShortName((this.info as GoalInfo)?.team)}`
                 }
