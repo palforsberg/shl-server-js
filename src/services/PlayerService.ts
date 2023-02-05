@@ -1,8 +1,6 @@
-import { Player, PlayersOnTeam } from "../models/GameStats";
+import { Game } from "../models/Game";
+import { GameStats, Player, PlayersOnTeam } from "../models/GameStats";
 import { Service } from "../Service";
-import { GameStatsService } from "./GameStatsService";
-import { SeasonService } from "./SeasonService";
-
 
 /**
  * PlayerService
@@ -10,17 +8,20 @@ import { SeasonService } from "./SeasonService";
  * Best player vs before game
  * Best at end of season
  */
-class PlayerService extends Service<Record<number, Player>> {
+class PlayerService extends Service<Player[]> {
     
-    seasonService: SeasonService
-    gameStatsService: GameStatsService
+    getGames: () => Promise<Game[]>
+    getGameStats: (game_uuid: string) => (GameStats | undefined)
 
     teamCache: Record<string, Player[]>
 
-    constructor(seasonService: SeasonService, gameStatsService: GameStatsService) {
-        super('players_' + seasonService.season, {}, () => this.aggregatePlayers(), 0)
-        this.seasonService = seasonService
-        this.gameStatsService = gameStatsService
+    constructor(
+        season: number, 
+        getGames: () => Promise<Game[]>, 
+        getGameStats: (game_uuid: string) => (GameStats | undefined)) {
+        super('players_' + season, [], () => this.aggregatePlayers(), 0)
+        this.getGames = getGames
+        this.getGameStats = getGameStats
         this.teamCache = {}
 
         this.getPlayersForTeam = this.getPlayersForTeam.bind(this)
@@ -32,59 +33,96 @@ class PlayerService extends Service<Record<number, Player>> {
             return Promise.resolve(this.teamCache[team])
         }
         return this.read().then(players => {
-            const playersForTeam = Object.values(players).filter((e: Player) => e.team == team)
+            const playersForTeam = players.filter((e: Player) => e.team == team)
             this.teamCache[team] = playersForTeam
             return playersForTeam
         })
     }
 
-    private aggregatePlayers(): Promise<Record<number, Player>> {
+    private async aggregatePlayers(): Promise<Player[]> {
         console.log('[PLAYERS] Start aggregate')
         this.teamCache = {}
-        const result = this.seasonService.read().then(games => {
-            const players: Record<number, Player> = {}
-            games
-                .filter(e => e.played)
-                .map(e => this.gameStatsService.getFromCache(e.game_uuid))
-                .filter(e => e != undefined)
-                .flatMap(e => Object.values(e?.playersByTeam || {}))
-                .flatMap(PlayerService.getAllPlayers)
-                .forEach(e => {
-                    const player: Player = players[e.player] || {
-                        player: e.player,
-                        team: e.team,
-                        firstName: e.firstName,
-                        familyName: e.familyName,
-                        jersey: e.jersey,
-                        position: e.position,
-                        line: e.line,
-                    }
-
-                    const toiSeconds = PlayerService.parseToi(e.toi)
-                    const hasPlayed = toiSeconds > 0 || (e.tot_svs ?? 0) > 0
-
-                    // Player stats
-                    player.g =          PlayerService.add(player.g, e.g)
-                    player.a =          PlayerService.add(player.a, e.a)
-                    player.sog =        PlayerService.add(player.sog, e.sog)
-                    player.pim =        PlayerService.add(player.pim, e.pim)
-                    player.pop =        PlayerService.add(player.pop, e.pop)
-                    player.nep =        PlayerService.add(player.nep, e.nep)
-                    player.toiSeconds = PlayerService.add(player.toiSeconds, toiSeconds)
-                    player.gp =         PlayerService.add(player.gp, hasPlayed ? 1 : 0)
-
-                    // GK stats
-                    player.tot_ga =     PlayerService.add(player.tot_ga, e.tot_ga)
-                    player.tot_soga =   PlayerService.add(player.tot_soga, e.tot_soga)
-                    player.tot_svs =    PlayerService.add(player.tot_svs, e.tot_svs)
-                    
-                    players[e.player] = player
-                })
-                return players
+        const games = await this.getGames()
+        const players: Record<number, Player> = {}
+        const playedGames = games
+            .filter(e => {
+                if (e.start_date_time < new Date() && !e.played) {
+                    console.log('not finished: ', e)
+                }
+                return e.played
             })
+            .map(e => this.getGameStats(e.game_uuid))
+            .filter(e => {
+                if (e == undefined || e.playersByTeam == undefined) { console.log('undefined game')}
+                return e != undefined
+            })
+        
+        playedGames.flatMap(e => Object.values(e?.playersByTeam || {}))
+            .flatMap(PlayerService.getAllPlayers)
+            .forEach(e => {
+                const player: Player = players[e.player] || {
+                    player: e.player,
+                    team: e.team,
+                    firstName: e.firstName,
+                    familyName: e.familyName,
+                    jersey: e.jersey,
+                    position: e.position,
+                    line: e.line,
+                }
+                const toiSeconds = PlayerService.parseToi(e.toi)
+                const hasPlayed = toiSeconds > 0 || (e.tot_svs ?? 0) > 0
+
+                // Player stats
+                player.g =          PlayerService.add(player.g, e.g)
+                player.a =          PlayerService.add(player.a, e.a)
+                player.sog =        PlayerService.add(player.sog, e.sog)
+                player.pim =        PlayerService.add(player.pim, e.pim)
+                player.pop =        PlayerService.add(player.pop, e.pop)
+                player.nep =        PlayerService.add(player.nep, e.nep)
+                player.toiSeconds = PlayerService.add(player.toiSeconds, toiSeconds)
+                player.gp =         PlayerService.add(player.gp, hasPlayed ? 1 : 0)
+
+                // GK stats
+                player.tot_ga =     PlayerService.add(player.tot_ga, e.tot_ga)
+                player.tot_soga =   PlayerService.add(player.tot_soga, e.tot_soga)
+                player.tot_svs =    PlayerService.add(player.tot_svs, e.tot_svs)
+                
+                players[e.player] = player
+            })
+
+        const playerRank = Object.values(players)
+            .filter(e => e.position != "GK")
+            .sort((a, b) => PlayerService.getPoints(b) - PlayerService.getPoints(a))
+
+        if (playerRank.length > 0) {
+            var currentRank = 1
+            var currentScore = PlayerService.getPoints(playerRank[0])
+            playerRank.forEach((p, i) => {
+                if (PlayerService.getPoints(p) < currentScore) {
+                    currentRank = i + 1
+                    currentScore = PlayerService.getPoints(p)
+                }
+                players[p.player].rank = currentRank
+            })
+        }
+
+        const gkRank = Object.values(players)
+            .filter(e => e.position == "GK")
+            .sort((a, b) => PlayerService.getPoints(b) - PlayerService.getPoints(a))
             
-        console.log('[PLAYERS] End aggregate')
-        return result
+        if (gkRank.length > 0) {
+            var currentGkRank = 1
+            var currentGkScore = PlayerService.getPoints(gkRank[0])
+            gkRank.forEach((p, i) => {
+                if (PlayerService.getPoints(p) < currentGkScore) {
+                    currentGkRank = i + 1
+                    currentGkScore = PlayerService.getPoints(p)
+                }
+                players[p.player].rank = currentGkRank
+            })
+        }
+        console.log(`[PLAYERS] End aggregate of ${playedGames.length} games, ${Object.keys(players).length} players`)
+        return Object.values(players)
     }
 
     private static getAllPlayers(p: PlayersOnTeam): (Player)[] {
@@ -112,6 +150,13 @@ class PlayerService extends Service<Record<number, Player>> {
         if (b == undefined) return v
         if (v == undefined) return b
         return b + v
+    }
+
+    private static getPoints(p: Player): number {
+        if (p.position == 'GK') {
+            return (p.tot_svs ?? 0) / (p.tot_soga ?? 1)
+        }
+        return (p.g ?? 0) + (p.a ?? 0)
     }
 }
 

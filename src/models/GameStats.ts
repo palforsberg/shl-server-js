@@ -17,6 +17,8 @@ interface Player {
 
     gp?: number,
   
+    rank?: number,
+
     // Player stats
     toi?: string
     toiSeconds?: number

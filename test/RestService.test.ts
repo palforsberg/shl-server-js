@@ -46,7 +46,7 @@ const seasonServices = {
  }
 const standingsService = new StandingService(season, 4, shl)
 const wsEventService = new WsEventService()
-const playerService = new PlayerService(seasonService, gameStatsService)
+const playerService = new PlayerService(season, seasonService.read, gameStatsService.getFromCache)
 
 const getServices: Record<string, (a: any, b: any) => void> = {}
 const postServices: Record<string, (a: any, b: any) => void> = {}

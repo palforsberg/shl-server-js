@@ -38,7 +38,7 @@ const gameStatsService = new GameStatsService(shl)
 const seasonService = new SeasonService(season, 0, shl, reportService, gameStatsService)
 const standingsService = new StandingService(season, 4, shl)
 const socket = new ShlSocket(config.shl_socket_path)
-const playerService = new PlayerService(seasonService, gameStatsService)
+const playerService = new PlayerService(season, seasonService.read, gameStatsService.getFromCache)
 
 const looper = new GameLoop(
     seasonService,

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "tsc && ./start_cli.sh",
     "tsc": "tsc",
-    "test": "jest --silent"
+    "test": "jest --silent --detectOpenHandles"
   },
   "author": "",
   "license": "ISC",

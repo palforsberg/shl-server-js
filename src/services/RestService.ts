@@ -99,9 +99,11 @@ class RestService {
             return res.sendFile('./playoff.json', { root: process.cwd() })
          })
 
-         this.app.get('/players/:team', async (req: any, res: any) => {
-            var players = await this.playerService.getPlayersForTeam(req.params.team)
-            return res.json(players)
+         this.app.get('/players/:team?', async (req: any, res: any) => {
+            if (!req.params.team) {
+               return res.json(await this.playerService.read())
+            }
+            return res.json(await this.playerService.getPlayersForTeam(req.params.team))
          })
          
          this.app.post('/user', (req: any, res: any) => {

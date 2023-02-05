@@ -44,7 +44,10 @@ const seasonServices = {
    2020: new SeasonService(2020, -1, shl, gameReportService, statsService),
    2019: new SeasonService(2019, -1, shl, gameReportService, statsService),
 }
-const playerService = new PlayerService(seasonServices[currentSeason], statsService)
+const playerService = new PlayerService(
+   currentSeason,
+   seasonServices[currentSeason].read,
+   statsService.getFromCache)
 
 const notifier = new Notifier(config, userService)
 notifier.setOnError(userService.handleNotificationError)

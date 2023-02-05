@@ -58,9 +58,9 @@ const gameReportService = new GameReportService()
 const notifier = new Notifier(getConfig(), new UserService())
 const statsService = new GameStatsService(new SHL(getConfig()))
 
-beforeEach(() => {
+beforeEach(async () => {
     middle = new SocketMiddleware(new MockedSeasonService(), socket, wsEventService, gameReportService, notifier, statsService)
-    socket.open()
+    await socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})
     gameReportService.db.write({})

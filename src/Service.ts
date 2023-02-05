@@ -86,4 +86,5 @@ class Service<T> {
 
 export {
    Service,
+   WrappedObject,
 }
