@@ -99,9 +99,9 @@ class GameEvent {
 
     getBody(): string | undefined {
         if (this.type == EventType.GameStart) {
-            return TeamsService.getName(this.info.homeTeamId)
-                + ' vs ' +
-                TeamsService.getName(this.info.awayTeamId)
+            return TeamsService.getShortName(this.info.homeTeamId)
+                + ' - ' +
+                TeamsService.getShortName(this.info.awayTeamId)
         }
         if (this.type == EventType.GameEnd) {
             return this.getScoreString()
@@ -119,6 +119,27 @@ class GameEvent {
             return this.getScoreString() + t
         }
         return undefined
+    }
+
+    getImages(): string[] | undefined {
+        const { homeTeamId, awayTeamId } = this.info
+        switch (this.type) {
+            case EventType.GameStart: {
+                return [homeTeamId, awayTeamId]
+            }
+            case EventType.GameEnd: {
+                const victor = this.info.homeResult >= this.info.awayResult ? homeTeamId : awayTeamId
+                const loser = victor == homeTeamId ? awayTeamId : homeTeamId
+                return [victor, loser]
+            }
+            case EventType.Goal: {
+                const scorer = (this.info as GoalInfo)?.team ?? homeTeamId
+                return [scorer]
+            }
+            default: {
+                return undefined
+            }
+        }
     }
 
     shouldNotify(): boolean {

@@ -46,7 +46,7 @@ const seasonServices = {
 }
 const playerService = new PlayerService(
    currentSeason,
-   seasonServices[currentSeason].read,
+   seasonServices[currentSeason].getDecorated,
    statsService.getFromCache)
 
 const notifier = new Notifier(config, userService)
@@ -91,12 +91,11 @@ const restService = new RestService(
 restService.setupRoutes()
 restService.startListen(config.port)
 
-Object.entries(seasonServices).forEach(e => e[1].update())
-Object.entries(standingsService.seasons).forEach(e => e[1].update())
-
 try {
    // Populate caches
-   seasonServices[currentSeason].populateGameIdCache()
+   Promise.all(Object.entries(seasonServices).map(e => e[1].update()))
+      .then(() => Promise.all(Object.entries(standingsService.seasons).map(e => e[1].update())))
+      .then(() => seasonServices[currentSeason].populateGameIdCache())
       .then(() => statsService.db.read())
       .then(() => wsEventService.db.read())
       .then(() => playerService.update())

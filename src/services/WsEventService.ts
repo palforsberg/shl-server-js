@@ -1,5 +1,5 @@
 import { Db } from "../Db";
-import { EventType, GameEvent, GameInfo } from "../models/GameEvent";
+import { EventType, GameEvent, GameInfo, GoalInfo } from "../models/GameEvent";
 import { WsEvent } from "../ShlSocket";
 
 class WsGameEvent extends GameEvent {
@@ -16,8 +16,38 @@ class WsGameEvent extends GameEvent {
         this.gametime = event.gametime
         this.timePeriod = event.timePeriod
         this.description = event.description
+        this.getInfo = this.getInfo.bind(this)
     }
 
+    override getBody(): string | undefined {
+        if (this.type == EventType.Goal) {
+            let t = '';
+            if ((this.info as GoalInfo)?.player) {
+                const p = (this.info as GoalInfo).player!
+                t += `${p.firstName.charAt(0)}. ${p.familyName} • `
+            }
+            t += this.getInfo()
+            return this.getScoreString() + '\n' + t
+        }
+        return super.getBody()
+    }
+
+    private getInfo(): string {
+        switch (this.info.periodNumber) {
+          case 99:
+            return 'Straffar'
+          case 4:
+            return `Övertid ${this.gametime}`
+          case 3:
+            return `P3 ${this.gametime}`
+          case 2:
+            return `P2 ${this.gametime}`
+          case 1:
+            return `P1 ${this.gametime}`
+          default:
+            return this.gametime
+        }
+    }
     toString(): string {
         return `${this.gametime} ${this.getScoreString()} - ${this.type} ${this.description} [${this.eventId} ${this.revision}]`
     }

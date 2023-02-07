@@ -54,7 +54,8 @@ class GameLoop {
 
     private async gameJob(): Promise<Game[]> {
         await this.standingsService.getCurrentSeason().update()
-        const season = await this.seasonService.update()
+        await this.seasonService.update()
+        const season = await this.seasonService.getDecorated()
         const gamesWithin5Min = SeasonService.getLiveGames(season || [], 5)
         this.addGamesToFetch(gamesWithin5Min)
 
@@ -94,6 +95,9 @@ class GameLoop {
     private addGamesToFetch(games: Game[]) {
         const toAdd = games
             .filter(g => this.gamesToFetch.find(e => e.game_uuid == g.game_uuid) == undefined)
+        if (toAdd.length > 0) {
+            console.log('[LOOP] Found new games ', toAdd.map(e => `${e.game_id} ${e.status} ${e.played}`))
+        }
         this.gamesToFetch = [...this.gamesToFetch, ...toAdd]
     }
 

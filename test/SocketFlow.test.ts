@@ -66,9 +66,9 @@ jsonFeed
         seasonService.gameIdToGameUuid[e.gameId] = 'game_uuid_' + e.gameId
     })
 
-beforeEach(() => {
+beforeEach(async () => {
     middleware = new SocketMiddleware(seasonService, socket, wsEventService, liveStatsService, new Notifier(getConfig(), userService), new GameStatsService(new SHL(getConfig())))
-    socket.open()
+    await socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})
 })

@@ -26,7 +26,9 @@ class SeasonService extends Service<Game[]> {
         this.statsService = statsService
         this.gameIdToGameUuid = {}
         this.decorated = undefined
-        this.service = this.seasonService.bind(this)
+
+        this.service = this.seasonService.bind(this) // overwrite the .season function in Service
+        this.getDecorated = this.getDecorated.bind(this)
         this.cleanDecorated = this.cleanDecorated.bind(this)
         this.decorate = this.decorate.bind(this)
         this.populateGameIdCache = this.populateGameIdCache.bind(this)
