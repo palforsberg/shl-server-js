@@ -11,6 +11,7 @@ import { SeasonService } from './services/SeasonService'
 import { StandingService } from './services/StandingService'
 import { RestService } from './services/RestService'
 import express from 'express'
+import compression from 'compression'
 import { Notifier } from './Notifier'
 import { ShlSocket } from './ShlSocket'
 import { SocketMiddleware } from './services/SocketMiddleware'
@@ -74,7 +75,9 @@ const gameLoop = new GameLoop(
    playerService,
 )
 
-const app = express().use(express.json())
+const app = express()
+   .use(express.json())
+   .use(compression())
 
 const restService = new RestService(
    config,
