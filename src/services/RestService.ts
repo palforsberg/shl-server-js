@@ -67,6 +67,8 @@ class RestService {
                stats.recaps!.gameRecap.homeG = report.homeScore
                stats.recaps!.gameRecap.awayG = report.awayScore
             }
+            stats.playersByTeam = undefined
+
             stats!.events = await this.wsEventService.read(req.params.game_uuid)
             return res.json(stats)
          })
