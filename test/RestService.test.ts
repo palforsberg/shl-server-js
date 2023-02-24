@@ -229,6 +229,7 @@ test('Get game stats', async () => {
     stats.events = [JSON.parse(JSON.stringify(event))]
     stats.report = report
     stats.status = GameStatus.Period1
+    stats.playersByTeam = undefined
     const body = res.body
     expect(JSON.parse(JSON.stringify(body))).toEqual(stats)
 })
@@ -249,6 +250,7 @@ test('Get non existing game stats', async () => {
     expect(res.json).toHaveBeenCalledTimes(1)
     const empty = GameStats.empty()
     empty.events = []
+    empty.playersByTeam = undefined
     expect(JSON.stringify(res.body)).toBe(JSON.stringify(empty))
 })
 
@@ -268,6 +270,7 @@ test('Get non existing game stats, not found at all', async () => {
     expect(res.json).toHaveBeenCalledTimes(1)
     const empty = GameStats.empty()
     empty.events = []
+    empty.playersByTeam = undefined
     expect(JSON.stringify(res.body)).toBe(JSON.stringify(empty))
 })
 
@@ -285,6 +288,7 @@ test('Get game stats, no params', async () => {
     expect(res.json).toHaveBeenCalledTimes(1)
     const empty = GameStats.empty()
     empty.events = []
+    empty.playersByTeam = undefined
     expect(JSON.stringify(res.body)).toBe(JSON.stringify(empty))
 })
 

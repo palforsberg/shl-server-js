@@ -11,10 +11,7 @@ class FileAppend {
 
     store(fileName: string, object: any) {
         if (!FileAppend.enabled) return
-        let name = fileName
-        if (fileName == '_date') {
-            name = new Date().toISOString().split('T')[0]
-        }
+        let name = fileName.replaceAll('_date', new Date().toISOString().split('T')[0])
         let str = object
         if (typeof object != 'string') {
             str = JSON.stringify(object)
