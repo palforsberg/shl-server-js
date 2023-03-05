@@ -15,9 +15,9 @@ import { SHL } from "../src/ShlClient"
 import { getConfig, getGame, getGameReport, getGameStats, getStanding, mockAxios } from "./utils"
 import { GameStats } from '../src/models/GameStats';
 import { GameStatus } from '../src/models/Game';
-import { WsEventService, WsGameEvent } from '../src/services/WsEventService';
-import { GameReport, GameReportService } from '../src/services/GameReportService';
-import { EventType, GameEvent } from '../src/models/GameEvent';
+import { WsEventService } from '../src/services/WsEventService';
+import { GameReportService } from '../src/services/GameReportService';
+import { GameEvent } from '../src/models/GameEvent';
 import { PlayerService } from '../src/services/PlayerService';
 
 jest.mock("fs")
@@ -218,7 +218,7 @@ test('Get game stats', async () => {
     const res = new Response()
     const report = { gameUuid: game.game_uuid, gametime: '00:00', timePeriod: 0, homeScore: 0, awayScore: 0, statusString: 'Ongoing', gameState: 'Ongoing', period: 1 }
     await reportService.store(report)
-    const event = new WsGameEvent(EventType.GameStart, GameEvent.gameStart(new GameStats(stats)).info, { eventId: '1', gameId: 123, gametime: '00:00', timePeriod: 0, revision: 1, description: 'event', class: 'Period', period: 1 })
+    const event = GameEvent.gameStart(new GameStats(stats))
     await wsEventService.store(event)
 
     // When

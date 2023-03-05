@@ -1,12 +1,12 @@
 const fs = require('fs')
-import { EventType, PeriodInfo } from "../src/models/GameEvent"
+import { EventType, GameEvent, PeriodInfo } from "../src/models/GameEvent"
 import { Notifier } from "../src/Notifier"
 import { GameReportService } from "../src/services/GameReportService"
 import { GameStatsService } from "../src/services/GameStatsService"
 import { SeasonService } from "../src/services/SeasonService"
 import { SocketMiddleware } from "../src/services/SocketMiddleware"
 import { UserService } from "../src/services/UserService"
-import { WsEventService, WsGameEvent } from "../src/services/WsEventService"
+import { WsEventService } from "../src/services/WsEventService"
 import { SHL } from "../src/ShlClient"
 import { ShlSocket, WsGame } from "../src/ShlSocket"
 import { getConfig } from "./utils"
@@ -67,7 +67,7 @@ jsonFeed
     })
 
 beforeEach(async () => {
-    middleware = new SocketMiddleware(seasonService, socket, wsEventService, liveStatsService, new Notifier(getConfig(), userService), new GameStatsService(new SHL(getConfig())))
+    middleware = new SocketMiddleware(seasonService, wsEventService, liveStatsService, new Notifier(getConfig(), userService), new GameStatsService(new SHL(getConfig())))
     await socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})
@@ -102,7 +102,7 @@ test('Run feed for complete day', async () => {
     verifyContains(events, e => e.type == EventType.PeriodEnd && (e.info as PeriodInfo).periodNumber == 3)
 })
 
-function verifyContains(events: WsGameEvent[], predicate: (arg0: WsGameEvent) => Boolean, numberEvents = 1) {
+function verifyContains(events: GameEvent[], predicate: (arg0: GameEvent) => Boolean, numberEvents = 1) {
     const nrMatching = events.filter(predicate).length
     expect(nrMatching).toBe(numberEvents)
 }

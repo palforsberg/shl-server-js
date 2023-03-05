@@ -60,7 +60,7 @@ const httpServer = app.listen(port, () => console.log(`[MOCK]: Mock is running a
 /**
  * Feed
  */
-const feed: any[] = fs.readFileSync('./log/2023-01-05.log')
+const feed: any[] = fs.readFileSync('./log/2023-02-28.log')
     .toString()
     .split('\n')
     .filter((e: string) => e != '')

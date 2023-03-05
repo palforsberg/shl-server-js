@@ -29,6 +29,7 @@ interface GoalInfo extends GameInfo {
     team: string,
     player?: EventPlayer
     teamAdvantage: string
+    assist?: string
 }
 interface PeriodInfo extends GameInfo {
 }
@@ -46,18 +47,30 @@ class GameEvent {
     timestamp: Date
     id: string
 
-    constructor(
-        type: EventType, 
-        info: GoalInfo | GameInfo | PeriodInfo | PenaltyInfo,
-    ) {
+    eventId: string
+    revision: number
+    gametime: string
+    timePeriod: number
+    description: string
 
+    constructor(
+        type: EventType, info: GameInfo, eventId: string, revision: number, gametime: string, timePeriod: number, description: string
+    ) {
         this.type = type
         this.info = info
+
+        this.eventId = eventId
+        this.revision = revision
+        this.gametime = gametime
+        this.timePeriod = timePeriod
+        this.description = description
+
         this.getTitle = this.getTitle.bind(this)
         this.getBody = this.getBody.bind(this)
         this.shouldNotify = this.shouldNotify.bind(this)
         this.toString = this.toString.bind(this)
         this.getId = this.getId.bind(this)
+        this.getInfo = this.getInfo.bind(this)
 
         this.id = this.getId()
         this.timestamp = new Date()
@@ -105,18 +118,15 @@ class GameEvent {
         }
         if (this.type == EventType.GameEnd) {
             return this.getScoreString()
-        }
+        }        
         if (this.type == EventType.Goal) {
             let t = '';
             if ((this.info as GoalInfo)?.player) {
                 const p = (this.info as GoalInfo).player!
-                t += p.firstName + ' ' + p.familyName + ' '
+                t += `${p.firstName.charAt(0)}. ${p.familyName} • `
             }
-            t += GameEvent.getPeriodFormatted(this.info.periodNumber)
-            if (t) {
-                t = '\n' + t
-            }
-            return this.getScoreString() + t
+            t += this.getInfo()
+            return this.getScoreString() + '\n' + t
         }
         return undefined
     }
@@ -154,7 +164,7 @@ class GameEvent {
     }
 
     toString(): string {
-        return this.getTitle() + ' ' + this.getBody() 
+        return `${this.gametime} ${this.getScoreString()} - ${this.type} ${this.description} [${this.eventId} ${this.revision}]`
     }
 
     getId(): string {
@@ -183,11 +193,28 @@ class GameEvent {
         return `${ht} ${hg} - ${ag} ${at}`
     }
 
+    private getInfo(): string {
+        switch (this.info.periodNumber) {
+          case 99:
+            return 'Straffar'
+          case 4:
+            return `Övertid ${this.gametime}`
+          case 3:
+            return `P3 ${this.gametime}`
+          case 2:
+            return `P2 ${this.gametime}`
+          case 1:
+            return `P1 ${this.gametime}`
+          default:
+            return this.gametime
+        }
+    }
+
     static gameStart(game: GameStats): GameEvent {
-        return new GameEvent(EventType.GameStart, this.getGameInfo(game))
+        return new GameEvent(EventType.GameStart, this.getGameInfo(game), '', 1, '', 0, '')
     }
     static gameEnd(game: GameStats): GameEvent {
-        return new GameEvent(EventType.GameEnd, this.getGameInfo(game))
+        return new GameEvent(EventType.GameEnd, this.getGameInfo(game), '', 3, '', 0, '')
     }
     static goal(game: GameStats, team: string, player: Player | undefined, isPowerPlay: boolean): GameEvent {
         const info: GoalInfo = { 
@@ -196,7 +223,7 @@ class GameEvent {
             player,
             teamAdvantage: isPowerPlay ? 'PP' : '',
         }
-        return new GameEvent(EventType.Goal, info)
+        return new GameEvent(EventType.Goal, info, '', 1, '', 0, '')
     }
     static penalty(game: GameStats, team: string, player: Player | undefined, penalty: number): GameEvent {
         const info: PenaltyInfo = { 
@@ -205,20 +232,20 @@ class GameEvent {
             team,
             player,
         }
-        return new GameEvent(EventType.Penalty, info)
+        return new GameEvent(EventType.Penalty, info, '', 1, '', 0, '')
     }
     static periodStart(game: GameStats): GameEvent {
         const info: PeriodInfo = { 
             ...this.getGameInfo(game),
         }
-        return new GameEvent(EventType.PeriodStart, info)
+        return new GameEvent(EventType.PeriodStart, info, '', 1, '', 0, '')
     }
 
     static periodEnd(game: GameStats): GameEvent {
         const info: PeriodInfo = { 
             ...this.getGameInfo(game),
         }
-        return new GameEvent(EventType.PeriodEnd, info)
+        return new GameEvent(EventType.PeriodEnd, info, '', 1, '', 0, '')
     }
 
     static getGameInfo(game: GameStats): GameInfo {

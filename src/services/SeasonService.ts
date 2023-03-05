@@ -19,6 +19,7 @@ class SeasonService extends Service<Game[]> {
         shl: SHL,
         gameReports: GameReportService,
         statsService: GameStatsService) {
+
         super(`games_${season}`, [], () => Promise.resolve([]), expiryDelta)
         this.shl = shl
         this.season = season

@@ -1,13 +1,12 @@
-import { EventPlayer, EventType, GameInfo, GoalInfo, PenaltyInfo, PeriodInfo } from '../models/GameEvent'
+import { EventPlayer, EventType, GameEvent, GameInfo, GoalInfo, PenaltyInfo, PeriodInfo } from '../models/GameEvent'
 import { Notifier } from '../Notifier'
-import { WsEventService, WsGameEvent } from '../services/WsEventService'
-import { ShlSocket, WsEvent, WsGame } from '../ShlSocket'
+import { WsEventService } from '../services/WsEventService'
+import { WsEvent, WsGame } from '../ShlSocket'
 import { GameReportService, GameReport } from './GameReportService'
 import { GameStatsService } from './GameStatsService'
 import { SeasonService } from './SeasonService'
 
 class SocketMiddleware {
-    socket: ShlSocket
     season: SeasonService
     wsEventService: WsEventService
     gameReportService: GameReportService
@@ -16,13 +15,11 @@ class SocketMiddleware {
 
     constructor(
         season: SeasonService, 
-        socket: ShlSocket,
         wsEventService: WsEventService,
         gameReportService: GameReportService,
         notifier: Notifier,
         statsService: GameStatsService,
     ) {
-        this.socket = socket
         this.season = season
         this.wsEventService = wsEventService
         this.gameReportService = gameReportService
@@ -51,7 +48,7 @@ class SocketMiddleware {
         this.season.cleanDecorated()
     }
 
-    async onEvent(m: WsEvent): Promise<WsGameEvent | undefined> {
+    async onEvent(m: WsEvent): Promise<GameEvent | undefined> {
         const gameUuid = this.season.gameIdToGameUuid[m.gameId]
         if (gameUuid == undefined) {
             console.log(`[MIDDLE] Unknown game event ${(m as WsGoalEvent)?.team} - ${m.gameId}`)
@@ -75,7 +72,7 @@ class SocketMiddleware {
         return wsEvent
     }
 
-    private mapEvent(gameUuid: string, m: WsEvent): WsGameEvent | undefined {
+    private mapEvent(gameUuid: string, m: WsEvent): GameEvent | undefined {
         switch (m.class) {
             case 'Goal':
                 return this.mapGoalEvent(gameUuid, m as WsGoalEvent)
@@ -95,7 +92,7 @@ class SocketMiddleware {
         }
     }
 
-    private mapGoalEvent(gameUuid: string, event: WsGoalEvent): WsGameEvent {
+    private mapGoalEvent(gameUuid: string, event: WsGoalEvent): GameEvent {
         const parts = event.extra.scorerLong.split(' ')
         const player: EventPlayer = {
             jersey: parseInt(parts[0]),
@@ -109,11 +106,12 @@ class SocketMiddleware {
             team: event.team,
             player,
             teamAdvantage: event.extra.teamAdvantage,
+            assist: event.extra.assist,
         }
-        return new WsGameEvent(EventType.Goal, info, event)
+        return wsEventToGameEvent(EventType.Goal, info, event)
     }
 
-    private mapPenaltyEvent(gameUuid: string, event: WsPenaltyEvent): WsGameEvent | undefined {
+    private mapPenaltyEvent(gameUuid: string, event: WsPenaltyEvent): GameEvent | undefined {
         if (event.description == 'Penalty shot') {
             return undefined
         }
@@ -140,23 +138,23 @@ class SocketMiddleware {
             reason,
             penaltyLong,
         }
-        return new WsGameEvent(EventType.Penalty, info, event)
+        return wsEventToGameEvent(EventType.Penalty, info, event)
     }
 
-    private mapPeriodEvent(gameUuid: string, event: WsPeriodEvent): WsGameEvent | undefined {
+    private mapPeriodEvent(gameUuid: string, event: WsPeriodEvent): GameEvent | undefined {
         if (event.period == 0) {
             const info: GameInfo = this.getGameInfoFromEvent(gameUuid, event)
             if (event.extra.gameStatus == 'Ongoing') {
-                return new WsGameEvent(EventType.GameStart, info, event)
+                return wsEventToGameEvent(EventType.GameStart, info, event)
             } else if (event.extra.gameStatus == 'GameEnded') {
-                return new WsGameEvent(EventType.GameEnd, info, event)
+                return wsEventToGameEvent(EventType.GameEnd, info, event)
             } // Intermission
         } else {
             const info: PeriodInfo = this.getGameInfoFromEvent(gameUuid, event)
             if (event.extra.gameStatus == 'Playing') {
-                return new WsGameEvent(EventType.PeriodStart, info, event)
+                return wsEventToGameEvent(EventType.PeriodStart, info, event)
             } else if (event.extra.gameStatus == 'Finished') {
-                return new WsGameEvent(EventType.PeriodEnd, info, event)
+                return wsEventToGameEvent(EventType.PeriodEnd, info, event)
             }
         }
         return undefined
@@ -202,6 +200,10 @@ function wsGameToGameReport(gameUuid: string, wsGame: WsGame): GameReport {
     }
 }
 
+
+function wsEventToGameEvent(type: EventType, info: GameInfo, event: WsEvent): GameEvent {
+    return new GameEvent(type, info, event.eventId, event.revision, event.gametime, event.timePeriod, event.description)
+}
 // {"eventId":44,"revision":2,"hash":"16029-44","channel":"All","gametime":"06:53","timePeriod":413,"gameId":16029,"realTime":"20221001161314","time":"1664633925.1865","period":2,"class":"Goal","type":"1-1","description":"1-1 (PP1) 20 J Connolly (2)","extra":{"pop":"POP: 14, 20, 23, 34, 47, 60","nep":"NEP: 4, 7, 26, 33, 37","assist":"14 J Berglund (1)","homeForward":["1"],"homeAgainst":["1"],"teamAdvantage":"PP1","scorerLong":"20 Jack Connolly","assistOneLong":"14 Jonas Berglund (1)"},"action":"message","source":"Parser","sourceport":"6600","team":"LHF","messagetype":"all","actiontype":"new","teamId":"1a71-1a71gTHKh","location":{"x":30,"y":-48},"status":"update","queue":"parser"}
 interface WsGoalEvent extends WsEvent {
     team: string,
@@ -211,6 +213,7 @@ interface WsGoalEvent extends WsEvent {
         teamAdvantage: string,
         homeAgainst: [string],
         homeForward: [string],
+        assist?: string
     }
 }
 
