@@ -7,6 +7,10 @@ class UserService {
 
     constructor() {
         this.db = new Db<User[]>('users', [])
+        this.addUser = this.addUser.bind(this)
+        this.read = this.read.bind(this)
+        this.readCached = this.readCached.bind(this)
+        this.handleNotificationError = this.handleNotificationError.bind(this)
     }
 
     addUser(user: User): Promise<User[]> {
@@ -19,6 +23,14 @@ class UserService {
             }
             return this.db.write(updated)
         })
+    }
+
+    read(user_id: string): Promise<User | undefined> {
+        return this.db.read().then(us => us.find(e => e.id == user_id))
+    }
+
+    readCached(user_id: string): User | undefined {
+        return this.db.readCached().find(e => e.id == user_id)
     }
 
     handleNotificationError(error: Errors, token: string) {

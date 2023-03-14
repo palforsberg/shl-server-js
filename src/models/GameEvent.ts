@@ -54,7 +54,8 @@ class GameEvent {
     description: string
 
     constructor(
-        type: EventType, info: GameInfo, eventId: string, revision: number, gametime: string, timePeriod: number, description: string
+        type: EventType, info: GameInfo, eventId: string, revision: number, gametime: string, timePeriod: number, description: string,
+        timestamp: Date = new Date()
     ) {
         this.type = type
         this.info = info
@@ -64,16 +65,19 @@ class GameEvent {
         this.gametime = gametime
         this.timePeriod = timePeriod
         this.description = description
+        this.timestamp = timestamp
 
         this.getTitle = this.getTitle.bind(this)
         this.getBody = this.getBody.bind(this)
         this.shouldNotify = this.shouldNotify.bind(this)
         this.toString = this.toString.bind(this)
         this.getId = this.getId.bind(this)
-        this.getInfo = this.getInfo.bind(this)
+        this.getImages = this.getImages.bind(this)
+        this.getTimeInfo = this.getTimeInfo.bind(this)
+        this.getTeam = this.getTeam.bind(this)
+        this.getPlayer = this.getPlayer.bind(this)
 
         this.id = this.getId()
-        this.timestamp = new Date()
     }
 
     getTitle(userTeam: string[] = []): string {
@@ -104,7 +108,11 @@ class GameEvent {
             case EventType.PeriodEnd:
                 return `Period ${(this.info as PeriodInfo)?.periodNumber} slutade`
             case EventType.Penalty:
-                return `Utvisning för ${(this.info as PenaltyInfo).team}`
+                var p
+                if (p = (this.info as PenaltyInfo)?.penaltyLong) {
+                    return `Utvisning - ${p}`
+                }
+                return 'Utvisning'
             default:
                 return this.type
         }
@@ -120,18 +128,28 @@ class GameEvent {
             return this.getScoreString()
         }        
         if (this.type == EventType.Goal) {
-            let t = '';
-            if ((this.info as GoalInfo)?.player) {
-                const p = (this.info as GoalInfo).player!
-                t += `${p.firstName.charAt(0)}. ${p.familyName} • `
+            let t = ''
+            const player = this.getPlayer()
+            if (player) {
+                t += `${player.firstName.charAt(0)}. ${player.familyName} • `
             }
-            t += this.getInfo()
+            t += this.getTimeInfo()
             return this.getScoreString() + '\n' + t
+        }
+        if (this.type == EventType.Penalty) {
+            let t = '';
+            const p_info = this.info as PenaltyInfo
+            const player = this.getPlayer()
+            if (player) {
+                t += `${player.firstName.charAt(0)}. ${player.familyName} • `
+            }
+            t += `${p_info.reason}`
+            return t
         }
         return undefined
     }
 
-    getImages(): string[] | undefined {
+    getImages(): string[] | undefined {
         const { homeTeamId, awayTeamId } = this.info
         switch (this.type) {
             case EventType.GameStart: {
@@ -149,6 +167,22 @@ class GameEvent {
             default: {
                 return undefined
             }
+        }
+    }
+
+    getTeam(): string | undefined {
+        switch (this.type) {
+            case EventType.Goal: return (this.info as GoalInfo).team
+            case EventType.Penalty: return (this.info as PenaltyInfo).team
+            default: return undefined
+        }
+    }
+
+    getPlayer(): EventPlayer | undefined {
+        switch (this.type) {
+            case EventType.Goal: return (this.info as GoalInfo).player
+            case EventType.Penalty: return (this.info as PenaltyInfo).player
+            default: return undefined
         }
     }
 
@@ -193,7 +227,7 @@ class GameEvent {
         return `${ht} ${hg} - ${ag} ${at}`
     }
 
-    private getInfo(): string {
+    getTimeInfo(): string {
         switch (this.info.periodNumber) {
           case 99:
             return 'Straffar'

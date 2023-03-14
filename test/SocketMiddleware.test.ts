@@ -1,11 +1,9 @@
 const fs = require('fs')
 import { EventType, GoalInfo, PenaltyInfo } from "../src/models/GameEvent"
-import { Notifier } from "../src/Notifier"
 import { GameReportService } from "../src/services/GameReportService"
 import { GameStatsService } from "../src/services/GameStatsService"
 import { SeasonService } from "../src/services/SeasonService"
 import { SocketMiddleware, WsGoalEvent, WsPenaltyEvent, WsPeriodEvent } from "../src/services/SocketMiddleware"
-import { UserService } from "../src/services/UserService"
 import { WsEventService } from "../src/services/WsEventService"
 import { SHL } from "../src/ShlClient"
 import { ShlSocket, WsEvent, WsGame } from "../src/ShlSocket"
@@ -18,23 +16,6 @@ fs.promises = {
     readFile: () => Promise.reject({ code: 'ENOENT'}),
     writeFile: () => Promise.resolve({}),
 }
-
-const sentNotification = jest.fn().mockResolvedValue({ failed: [] })
-jest.mock("apns2", () => ({
-    ...jest.requireActual('apns2'),
-    ApnsClient: class MockedApnsClient {
-        constructor() {
-    
-        }
-        on() {}
-        sendMany(notifications: Notification[]) {
-            sentNotification(notifications[0])
-        }
-    },
-    Errors: {
-        error: 'hejsan',
-    }
-}))
 
 class MockedSeasonService extends SeasonService {
     gameIdToGameUuid: Record<number, string>
@@ -55,17 +36,15 @@ let middle: SocketMiddleware
 
 const wsEventService = new WsEventService()
 const gameReportService = new GameReportService()
-const notifier = new Notifier(getConfig(), new UserService())
 const statsService = new GameStatsService(new SHL(getConfig()))
 
 beforeEach(async () => {
-    middle = new SocketMiddleware(new MockedSeasonService(), wsEventService, gameReportService, notifier, statsService)
+    middle = new SocketMiddleware(new MockedSeasonService(), wsEventService, gameReportService, statsService)
     await socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})
     gameReportService.db.write({})
     statsService.db.write({})
-    sentNotification.mockClear()
 })
 
 test('Should clear seasonservice on gamereport', async () => {
@@ -107,12 +86,13 @@ test('Should store event', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     const stored = await wsEventService.read('gameUuid_123')
     expect(stored.length).toBe(1)
-    expect(stored[0]).toBe(mapped)
+    expect(isNewEvent).toBe(true)
+    expect(JSON.stringify(stored[0])).toBe(JSON.stringify(mapped))
 })
 
 test('Should not store some event', async () => {
@@ -157,12 +137,13 @@ test('Should overwrite event with higher revision', async () => {
 
  
     // When
-    const mapped2 = await middle.onEvent(event2)
+    const [mapped2, isNewEvent] = await middle.onEvent(event2)
 
     // Then
     const stored = await wsEventService.read('gameUuid_123')
     expect(stored.length).toBe(1)
-    expect(stored[0]).toBe(mapped2)
+    expect(isNewEvent).toBe(false)
+    expect(JSON.stringify(stored[0])).toBe(JSON.stringify(mapped2))
     expect(stored[0].type).toBe(EventType.GameEnd)
 })
 
@@ -184,15 +165,17 @@ test('Should not overwrite event with lower revision', async () => {
         }
     }
 
-    const mapped1 = await middle.onEvent(event)
+    const [mapped1, isNewEvent1] = await middle.onEvent(event)
 
     // When
-    const mapped2 = await middle.onEvent(event2)
+    const [mapped2, isNewEvent2] = await middle.onEvent(event2)
 
     // Then
     const stored = await wsEventService.read('gameUuid_123')
     expect(stored.length).toBe(1)
-    expect(stored[0]).toBe(mapped1)
+    expect(JSON.stringify(stored[0])).toBe(JSON.stringify(mapped1))
+    expect(isNewEvent1).toBe(true)
+    expect(isNewEvent2).toBe(false)
     expect(stored[0].type).toBe(EventType.GameStart)
 })
 
@@ -206,7 +189,7 @@ test('Map not joined event', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     expect(mapped?.info.homeTeamId).toBe("")
@@ -223,7 +206,7 @@ test('Map unknown event', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     expect(mapped).toBeUndefined()
@@ -238,7 +221,7 @@ test('Map unhandled class', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     expect(mapped).toBeUndefined()
@@ -256,7 +239,7 @@ test('Map GameStart event', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     expect(mapped).toBeDefined()
@@ -283,7 +266,7 @@ test('Map Goal event', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     expect(mapped).toBeDefined()
@@ -310,7 +293,7 @@ test('Map Penalty event', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     expect(mapped).toBeDefined()
@@ -339,7 +322,7 @@ test('Map Penalty event with unusual description', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     expect(mapped).toBeDefined()
@@ -366,37 +349,10 @@ test('Map Penalty shot', async () => {
     }
 
     // When
-    const mapped = await middle.onEvent(event)
+    const [mapped, isNewEvent] = await middle.onEvent(event)
 
     // Then
     expect(mapped).toBeUndefined()
-})
-
-test('Should send notification', async () => {
-    // Given
-    const game = getGame()
-   await  middle.onGame(game)
-    const event: WsGoalEvent = {
-        ...getEvent(),
-        class: 'Goal',
-        team: 'LHF',
-        location: { x: 123, y: -123 },
-        extra: {
-            scorerLong: '123 Olle Ollson Karlsson',
-            teamAdvantage: 'PP3',
-            homeForward: ['13'],
-            homeAgainst: ['-123'],
-        }
-    }
-
-    // When
-    const mapped = await middle.onEvent(event)
-
-    // Then
-    expect(mapped).toBeDefined()
-    expect(mapped?.type).toBe(EventType.Goal)
-
-    expect(sentNotification).toBeCalledTimes(1)
 })
 
 function getEvent(): WsEvent {

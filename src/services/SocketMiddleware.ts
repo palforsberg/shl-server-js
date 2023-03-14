@@ -1,5 +1,4 @@
 import { EventPlayer, EventType, GameEvent, GameInfo, GoalInfo, PenaltyInfo, PeriodInfo } from '../models/GameEvent'
-import { Notifier } from '../Notifier'
 import { WsEventService } from '../services/WsEventService'
 import { WsEvent, WsGame } from '../ShlSocket'
 import { GameReportService, GameReport } from './GameReportService'
@@ -11,19 +10,16 @@ class SocketMiddleware {
     wsEventService: WsEventService
     gameReportService: GameReportService
     statsService: GameStatsService
-    notifier: Notifier
 
     constructor(
         season: SeasonService, 
         wsEventService: WsEventService,
         gameReportService: GameReportService,
-        notifier: Notifier,
         statsService: GameStatsService,
     ) {
         this.season = season
         this.wsEventService = wsEventService
         this.gameReportService = gameReportService
-        this.notifier = notifier
         this.statsService = statsService
 
         this.onGame = this.onGame.bind(this)
@@ -35,24 +31,27 @@ class SocketMiddleware {
         this.getGameInfoFromEvent = this.getGameInfoFromEvent.bind(this)
     }
 
-    async onGame(m: WsGame) {
+    async onGame(m: WsGame): Promise<GameReport | undefined> {
         const gameUuid = this.season.gameIdToGameUuid[m.gameId]
         if (gameUuid == undefined) {
             console.log(`[MIDDLE] Unknown game ${m.homeTeamCode} - ${m.awayTeamCode} ${m.gameId}`)
-            return
+            return undefined
         }
         console.log(`[MIDDLE] REPORT - ${m.statusString} ${m.homeTeamCode} ${m.homeScore} - ${m.awayScore} ${m.awayTeamCode} ${m.period} ${m.gameState}`)
 
         const report = wsGameToGameReport(gameUuid, m)
         await this.gameReportService.store(report)
+
         this.season.cleanDecorated()
+
+        return report
     }
 
-    async onEvent(m: WsEvent): Promise<GameEvent | undefined> {
+    async onEvent(m: WsEvent): Promise<[GameEvent | undefined, boolean]> {
         const gameUuid = this.season.gameIdToGameUuid[m.gameId]
         if (gameUuid == undefined) {
             console.log(`[MIDDLE] Unknown game event ${(m as WsGoalEvent)?.team} - ${m.gameId}`)
-            return undefined
+            return [undefined, false]
         }
         if (this.gameReportService.getFromCache(gameUuid) == null) {
             console.log(`[MIDDLE] Event for game with no report ${m.gameId}`)
@@ -61,15 +60,11 @@ class SocketMiddleware {
         console.log(`[MIDDLE] EVENT - ${m.class} ${m.gametime} ${(m as WsGoalEvent)?.team} ${m.description} [${m.eventId} ${m.revision}]`)
 
         const wsEvent = this.mapEvent(gameUuid, m)
-        if (!wsEvent) return undefined
+        if (!wsEvent) return [undefined, false]
     
         const isNewEvent = await this.wsEventService.store(wsEvent)
 
-        if (isNewEvent && wsEvent.shouldNotify()) {
-            await this.notifier.sendNotification(wsEvent)
-        }
-
-        return wsEvent
+        return [wsEvent, isNewEvent]
     }
 
     private mapEvent(gameUuid: string, m: WsEvent): GameEvent | undefined {

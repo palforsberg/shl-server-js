@@ -17,7 +17,8 @@
     "compression": "^1.7.4",
     "express": "^4.17.1",
     "sockjs": "^0.3.24",
-    "sockjs-client": "^1.6.1"
+    "sockjs-client": "^1.6.1",
+    "zod": "^3.21.0"
   },
   "devDependencies": {
     "@types/compression": "^1.7.2",

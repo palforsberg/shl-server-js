@@ -8,6 +8,9 @@ class WsEventService {
 
     constructor() {
         this.db = new Db('events_ws', {})
+        this.store = this.store.bind(this)
+        this.readCached = this.readCached.bind(this)
+        this.read = this.read.bind(this)
     }
 
     async store(event: GameEvent): Promise<boolean> {
@@ -31,12 +34,14 @@ class WsEventService {
 
     readCached(gameUuid: string): GameEvent[] {
         const allEvents = this.db.readCached()
-        return allEvents[gameUuid] || []
+        return (allEvents[gameUuid] || [])
+        .map(e => new GameEvent(e.type, e.info, e.eventId, e.revision, e.gametime, e.timePeriod, e.description, e.timestamp))
     }
 
     async read(gameUuid: string): Promise<GameEvent[]> {
         const allEvents = await this.db.read()
-        return allEvents[gameUuid] || []
+        return (allEvents[gameUuid] || [])
+            .map(e => new GameEvent(e.type, e.info, e.eventId, e.revision, e.gametime, e.timePeriod, e.description, e.timestamp))
     }
 }
 export {

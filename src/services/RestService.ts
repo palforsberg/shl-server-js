@@ -7,11 +7,11 @@ import { UserService } from "./UserService";
 import { GameStats } from "../models/GameStats";
 import { WsEventService } from "./WsEventService";
 import { GameReportService, getStatusFromGameReport } from "./GameReportService";
-import { Config } from "../models/Config";
 import { PlayerService } from "./PlayerService";
+import { LiveActivityService } from "./LiveActivityService";
+import { z } from "zod";
 
 class RestService {
-    private config: Config
     private seasonServices: Record<number, SeasonService>
     private standingServices: StandingService
     private users: UserService
@@ -20,9 +20,9 @@ class RestService {
     private gameReportService: GameReportService
     private playerService: PlayerService
     private app: any
+    private liveActivityService: LiveActivityService
 
     constructor(
-        config: Config,
         app: any,
         seasonServices: Record<number, SeasonService>,
         standingServices: StandingService,
@@ -31,8 +31,8 @@ class RestService {
         wsEventService: WsEventService,
         gameReportService: GameReportService,
         playerService: PlayerService,
+        liveActivityService: LiveActivityService,
     ) {
-        this.config = config
         this.app = app
         this.seasonServices = seasonServices
         this.standingServices = standingServices
@@ -41,6 +41,7 @@ class RestService {
         this.wsEventService = wsEventService
         this.gameReportService = gameReportService
         this.playerService = playerService
+        this.liveActivityService = liveActivityService
     }
 
     startListen(port: number) {
@@ -124,6 +125,33 @@ class RestService {
          
          this.app.get('/teams', (req: any, res: any) => {
             return res.json(TeamsService.getTeams())
+         })
+
+         const start_live_activity_req = z.object({
+            game_uuid: z.string(),
+            user_id: z.string(),
+            token: z.string(),
+         })
+         this.app.post('/live-activity/start', (req: any, res: any) => {
+            const parsed = start_live_activity_req.parse(req.body)
+            if (!parsed) {
+               return res.status(500).send('Invalid request')
+            }
+            return this.liveActivityService.subscribe(parsed.game_uuid, parsed.token, parsed.user_id)
+               .then(e => res.send('success'))
+         })
+
+         const end_live_activity_req = z.object({
+            game_uuid: z.string(),
+            user_id: z.string(),
+         })
+         this.app.post('/live-activity/end', (req: any, res: any) => {
+            const parsed = end_live_activity_req.parse(req.body)
+            if (!parsed) {
+               return res.status(500).send('Invalid request')
+            }
+            return this.liveActivityService.unsubscribe(parsed.game_uuid, parsed.user_id)
+               .then(e => res.send('success'))
          })
     }
 }

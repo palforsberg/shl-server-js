@@ -8,9 +8,8 @@ const fs = require('fs')
 class Notifier {
     apns: ApnsClient
     enabled: boolean
-    userService: UserService
 
-    constructor(config: Config, userService: UserService) {
+    constructor(config: Config) {
         var options: any = {
             team: config.apn_team_id,
             keyId: config.apn_key_id,
@@ -20,7 +19,6 @@ class Notifier {
         }
         this.apns = new ApnsClient(options)
         this.enabled = config.send_notifications
-        this.userService = userService
         this.setOnError = this.setOnError.bind(this)
     }
 
@@ -32,9 +30,7 @@ class Notifier {
     /**
      * For the event, get a list of users to send notification to.
      */
-    async sendNotification(event: GameEvent): Promise<User[]> {
-        const users = await this.userService.db.read()
-
+    async sendNotification(event: GameEvent, users: User[]): Promise<User[]> {
         if (!this.enabled) {
             console.log('[NOTIFIER] Muted', event.toString())
             return Promise.resolve(users)

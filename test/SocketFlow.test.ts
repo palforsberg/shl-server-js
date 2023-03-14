@@ -1,8 +1,8 @@
 const fs = require('fs')
 import { EventType, GameEvent, PeriodInfo } from "../src/models/GameEvent"
-import { Notifier } from "../src/Notifier"
 import { GameReportService } from "../src/services/GameReportService"
 import { GameStatsService } from "../src/services/GameStatsService"
+import { LiveActivityService } from "../src/services/LiveActivityService"
 import { SeasonService } from "../src/services/SeasonService"
 import { SocketMiddleware } from "../src/services/SocketMiddleware"
 import { UserService } from "../src/services/UserService"
@@ -29,8 +29,9 @@ class MockedSeasonService extends SeasonService {
 }
 const seasonService = new MockedSeasonService()
 const userService = new UserService()
-const liveStatsService = new GameReportService()
+const gameReportService = new GameReportService()
 const wsEventService = new WsEventService()
+const liveActivityService = new LiveActivityService(getConfig(), gameReportService.read, wsEventService.read, userService.readCached)
 
 jest.mock('../src/services/SeasonService')
 const socket = new ShlSocket('hejsan')
@@ -67,7 +68,7 @@ jsonFeed
     })
 
 beforeEach(async () => {
-    middleware = new SocketMiddleware(seasonService, wsEventService, liveStatsService, new Notifier(getConfig(), userService), new GameStatsService(new SHL(getConfig())))
+    middleware = new SocketMiddleware(seasonService, wsEventService, gameReportService, new GameStatsService(new SHL(getConfig())))
     await socket.open()
     socket.join = jest.fn()
     wsEventService.db.write({})

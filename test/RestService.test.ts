@@ -19,6 +19,7 @@ import { WsEventService } from '../src/services/WsEventService';
 import { GameReportService } from '../src/services/GameReportService';
 import { GameEvent } from '../src/models/GameEvent';
 import { PlayerService } from '../src/services/PlayerService';
+import { LiveActivityService } from '../src/services/LiveActivityService';
 
 jest.mock("fs")
 jest.mock("axios")
@@ -47,6 +48,7 @@ const seasonServices = {
 const standingsService = new StandingService(season, 4, shl)
 const wsEventService = new WsEventService()
 const playerService = new PlayerService(season, seasonService.read, gameStatsService.getFromCache)
+const liveActivityService = new LiveActivityService(getConfig(), reportService.read, wsEventService.read, userService.readCached)
 
 const getServices: Record<string, (a: any, b: any) => void> = {}
 const postServices: Record<string, (a: any, b: any) => void> = {}
@@ -58,7 +60,6 @@ app.post = jest.fn().mockImplementation((e, fnc) => {
 })
 
 const restService = new RestService(
-    config,
     app,
     seasonServices,
     standingsService,
@@ -67,6 +68,7 @@ const restService = new RestService(
     wsEventService,
     reportService,
     playerService,
+    liveActivityService,
 )
 
 restService.setupRoutes()

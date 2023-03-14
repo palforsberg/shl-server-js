@@ -19,6 +19,7 @@ import { WsEventService } from './services/WsEventService'
 import { FileAppend } from './services/FileAppend'
 import { GameReportService } from './services/GameReportService'
 import { PlayerService } from './services/PlayerService'
+import { LiveActivityService } from './services/LiveActivityService'
 
 const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
 require('events').EventEmitter.defaultMaxListeners = config.max_listeners || 100
@@ -50,19 +51,33 @@ const playerService = new PlayerService(
    seasonServices[currentSeason].getDecorated,
    statsService.getFromCache)
 
-const notifier = new Notifier(config, userService)
+const notifier = new Notifier(config)
 notifier.setOnError(userService.handleNotificationError)
+const liveActivityService = new LiveActivityService(config, gameReportService.read, wsEventService.read, userService.readCached)
 
 const socket = new ShlSocket(config.shl_socket_path)
-const middleware = new SocketMiddleware(seasonServices[currentSeason], wsEventService, gameReportService, notifier, statsService)
+const middleware = new SocketMiddleware(seasonServices[currentSeason], wsEventService, gameReportService, statsService)
 
 FileAppend.enabled = config.production
 
-socket.onEvent(e => {
-   return middleware.onEvent(e)
+socket.onEvent(async e => {
+   const [event, isNewEvent] = await middleware.onEvent(e)
+
+   if (event && isNewEvent) {
+      const live_acitivty_users = await liveActivityService.onEvent(event)
+      if (event.shouldNotify()) {
+         const users = await userService.db.read()
+            .then(us => us.filter(e => !live_acitivty_users.includes(e.id)))
+         await notifier.sendNotification(event, users)
+      }
+   }
 })
-socket.onGameReport(g => {
-   return middleware.onGame(g)
+socket.onGameReport(async g => {
+   const report = await middleware.onGame(g)
+   if (report) {
+      await liveActivityService.onReport(report)
+   }
+   return report
 })
 socket.onClose(() => {
 })
@@ -80,7 +95,6 @@ const app = express()
    .use(compression())
 
 const restService = new RestService(
-   config,
    app,
    seasonServices,
    standingsService,
@@ -89,6 +103,7 @@ const restService = new RestService(
    wsEventService,
    gameReportService,
    playerService,
+   liveActivityService,
 )
 
 restService.setupRoutes()
@@ -100,6 +115,7 @@ try {
       .then(() => Promise.all(Object.entries(standingsService.seasons).map(e => e[1].update())))
       .then(() => seasonServices[currentSeason].populateGameIdCache())
       .then(() => statsService.db.read())
+      .then(() => userService.db.read())
       .then(() => wsEventService.db.read())
       .then(() => playerService.update())
       .then(() => gameLoop.loop())
