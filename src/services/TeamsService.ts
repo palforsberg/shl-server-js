@@ -11,7 +11,6 @@ const teams: Team[] = [
     { code: "FHC", name: "Frölunda HC", shortname: "Frölunda" },
     { code: "FBK", name: "Färjestad BK", shortname: "Färjestad" },
     { code: "MIF", name: "IF Malmö Redhawks", shortname: "Malmö" },
-    { code: "DIF", name: "Djurgården IF", shortname: "Djurgården" },
     { code: "IKO", name: "IK Oskarshamn", shortname: "Oskarshamn" },
     { code: "LHC", name: "Linköpings HC", shortname: "Linköping" },
     { code: "BIF", name: "Brynäs IF", shortname: "Brynäs" },

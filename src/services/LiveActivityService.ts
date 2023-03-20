@@ -1,4 +1,4 @@
-import { ApnsClient, Errors, Notification, NotificationOptions, Priority, PushType } from "apns2";
+import { ApnsClient, Errors, Notification, NotificationOptions, Priority } from "apns2";
 import { Db } from "../Db";
 import { Config } from "../models/Config";
 import { GameStatus } from "../models/Game";
@@ -84,7 +84,7 @@ class LiveActivityService {
         updated[game_uuid] = entries
         await this.db.write(updated)
 
-        console.log(`[LIVE] Subscribed ${game_uuid} ${user_id}`,)
+        console.log(`[LIVE] Subscribed ${game_uuid} ${user_id}`)
     }
 
     async unsubscribe(game_uuid: string, user_id: string) {
@@ -118,6 +118,9 @@ class LiveActivityService {
     async onEvent(event: GameEvent): Promise<string[]> {
         const entries = (await this.db.read())[event.info.game_uuid] ?? []
         const report = await this.getReport(event.info.game_uuid)
+        if (event.type == EventType.GameStart && report) {
+            report.gametime = '00:00'
+        }
         const notifications = entries.map(e => this.getNotification(UpdateType.Event, report, event, e))
         await this.sendNotifications(notifications)
         if (event.type == EventType.GameEnd) {
@@ -149,7 +152,7 @@ class LiveActivityService {
         const content_state = getContentState(report, game_event, user_teams)
         const event = game_event?.type == EventType.GameEnd ? 'end' : 'update'
         const now = Math.floor(Date.now() / 1000)
-        const priority = update_type == UpdateType.Event ? Priority.immediate : Priority.throttled
+        const priority = Priority.immediate // update_type == UpdateType.Event ? Priority.immediate : Priority.throttled
         const should_alert = update_type == UpdateType.Event && (game_event?.shouldNotify() ?? false)
         
         const options: NotificationOptions = {
@@ -207,7 +210,8 @@ function getContentStateEvent(e: GameEvent, user_teams: string[]): ContentStateE
             const info = e.info as PenaltyInfo
             return { ...base, body: p_string + info?.reason ?? '', }
         }
-        case EventType.GameEnd: {
+        case EventType.GameEnd:
+        case EventType.GameStart: {
             return base
         }
         default: return undefined
