@@ -1,4 +1,4 @@
-import { ApnsClient, Errors, Notification, NotificationOptions, Priority } from "apns2";
+import { ApnsClient, Errors, Notification, NotificationOptions, Priority, PushType } from "apns2";
 import { Db } from "../Db";
 import { Config } from "../models/Config";
 import { GameStatus } from "../models/Game";
@@ -157,8 +157,7 @@ class LiveActivityService {
         const should_alert = update_type == UpdateType.Event && (game_event?.shouldNotify() ?? false)
         
         const options: NotificationOptions = {
-            // @ts-ignore, liveactivity type is not supported at the moment
-            type: 'liveactivity', 
+            type: PushType.liveactivity, 
             expiration: now + 3600,
             collapseId: entry.game_uuid,
             priority,
