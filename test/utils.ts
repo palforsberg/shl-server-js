@@ -57,7 +57,7 @@ function getGameStats(homeG = 0, awayG = 0): GameStatsIf {
 function getGameReport(): GameReport {
     return {
         gameUuid: 'game_uuid',
-        gametime: '00:00',
+        gametime: '12:34',
         timePeriod: 0,
         statusString: 'Ongoing',
         gameState: 'Ongoing',

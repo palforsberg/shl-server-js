@@ -117,7 +117,8 @@ class LiveActivityService {
 
     async onEvent(event: GameEvent): Promise<string[]> {
         const entries = (await this.db.read())[event.info.game_uuid] ?? []
-        const report = await this.getReport(event.info.game_uuid)
+        const _report = await this.getReport(event.info.game_uuid)
+        const report = _report ? { ..._report } : undefined
         if (event.type == EventType.GameStart && report) {
             report.gametime = '00:00'
         }
@@ -220,4 +221,5 @@ function getContentStateEvent(e: GameEvent, user_teams: string[]): ContentStateE
 
 export {
     LiveActivityService,
+    ContentState,
 }

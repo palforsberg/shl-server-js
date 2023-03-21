@@ -54,7 +54,13 @@ class GameEvent {
     description: string
 
     constructor(
-        type: EventType, info: GameInfo, eventId: string, revision: number, gametime: string, timePeriod: number, description: string,
+        type: EventType, 
+        info: GameInfo, 
+        eventId: string, 
+        revision: number, 
+        gametime: string, 
+        timePeriod: number, 
+        description: string,
         timestamp: Date = new Date()
     ) {
         this.type = type
