@@ -50,6 +50,13 @@ test('Test GameStatus', () => {
     expect(getStatusFromGameReport(report)).toBe(GameStatus.Overtime)
 
     // When
+    report.gameState = 'Ongoing'
+    report.period = 10
+
+    // Then
+    expect(getStatusFromGameReport(report)).toBe(GameStatus.Overtime)
+
+    // When
     report.gameState = 'Intermission'
     
     // Then

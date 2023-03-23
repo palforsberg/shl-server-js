@@ -1,32 +1,20 @@
 import { Config } from './models/Config'
 import { GameEvent, GoalInfo } from './models/GameEvent'
 import { User } from './models/User'
-import { ApnsClient, Notification, NotificationOptions, Errors } from 'apns2'
-import { UserService } from './services/UserService'
-const fs = require('fs')
+import { Notification, NotificationOptions } from 'apns2'
 
 class Notifier {
-    apns: ApnsClient
+    push: (notifications: Notification[]) => Promise<(Notification | {error: any})[]>
     enabled: boolean
 
-    constructor(config: Config) {
-        var options: any = {
-            team: config.apn_team_id,
-            keyId: config.apn_key_id,
-            signingKey: fs.readFileSync(`${config.apn_key_path}`),
-            defaultTopic: config.apn_topic,
-            host: !config.production ? 'api.development.push.apple.com' : undefined,
-        }
-        this.apns = new ApnsClient(options)
+    constructor(
+        config: Config, 
+        push: (notifications: Notification[]) => Promise<(Notification | {error: any})[]>) {
+
         this.enabled = config.send_notifications
-        this.setOnError = this.setOnError.bind(this)
+        this.push = push
     }
 
-    setOnError(onError: (error: Errors, token: string) => void) {
-        this.apns.on(Errors.error, (err) => {
-            onError(err.reason, err.notification.deviceToken)
-        })
-    }
     /**
      * For the event, get a list of users to send notification to.
      */
@@ -42,7 +30,7 @@ class Notifier {
             .map(u => this.getNotification(u, event))
 
         try {
-            await this.apns.sendMany(notifications)
+            await this.push(notifications)
             notifications.forEach(e => console.log('[NOTIFIER] Sent ' + JSON.stringify(e.options.alert) + ' to ' + e.deviceToken))
         } catch (e) {
             console.error('[NOTIFIER] Error:', e)

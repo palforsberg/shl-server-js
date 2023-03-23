@@ -12,19 +12,14 @@ fs.promises = {
 }
 
 var sentNotifications: Notification[] = []
-jest.mock('apns2', () => ({
-    ...jest.requireActual('apns2'),
-    ApnsClient: jest.fn().mockImplementation(() => ({
-        sendMany: (notifications: Notification[]) => {
-            sentNotifications = notifications
-        },
-        on: () => { }
-    }))
-}))
 
+const push = (e: Notification[]) => {
+    sentNotifications = e
+    return Promise.resolve(e)
+}
 const event = new GameEvent(EventType.GameStart, { homeTeamId: 'LHF', awayTeamId: 'TIK', homeResult: 0, awayResult: 0, game_uuid: '123', periodNumber: 1 }, '1', 1, '00:00', 0, 'desc')
 const general_game_report = getGameReport()
-const liveActivityService = new LiveActivityService(getConfig(), (a) => Promise.resolve(general_game_report), (a) => Promise.resolve([event]), (a) => undefined)
+const liveActivityService = new LiveActivityService(getConfig(), (a) => Promise.resolve(general_game_report), (a) => Promise.resolve([event]), (a) => undefined, push)
 
 beforeEach(async () => {
     await liveActivityService.db.write({})

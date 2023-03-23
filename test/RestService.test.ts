@@ -48,7 +48,7 @@ const seasonServices = {
 const standingsService = new StandingService(season, 4, shl)
 const wsEventService = new WsEventService()
 const playerService = new PlayerService(season, seasonService.read, gameStatsService.getFromCache)
-const liveActivityService = new LiveActivityService(getConfig(), reportService.read, wsEventService.read, userService.readCached)
+const liveActivityService = new LiveActivityService(getConfig(), reportService.read, wsEventService.read, userService.readCached, e => Promise.resolve([]))
 
 const getServices: Record<string, (a: any, b: any) => void> = {}
 const postServices: Record<string, (a: any, b: any) => void> = {}

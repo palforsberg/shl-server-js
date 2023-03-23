@@ -35,13 +35,23 @@ function getStatusFromGameReport(report: GameReport): GameStatus {
         return GameStatus.Shootout
     }
     if (report.gameState == 'Ongoing') {
-        switch (report.period) {
-            case 1: return GameStatus.Period1
-            case 2: return GameStatus.Period2
-            case 3: return GameStatus.Period3
-            case 4: return GameStatus.Overtime
-            case 99: return GameStatus.Shootout
-        }
+        return getStatusFromPeriod(report.period)
+    }
+    return GameStatus.Coming
+}
+function getStatusFromPeriod(p: number): GameStatus {
+    switch (p) {
+        case 1: return GameStatus.Period1
+        case 2: return GameStatus.Period2
+        case 3: return GameStatus.Period3
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+        case 10: return GameStatus.Overtime // can be multiple overtimes in playoffs
+        case 99: return GameStatus.Shootout
     }
     return GameStatus.Coming
 }
@@ -78,4 +88,5 @@ export {
     GameReport,
     GameReportService,
     getStatusFromGameReport,
+    getStatusFromPeriod,
 }

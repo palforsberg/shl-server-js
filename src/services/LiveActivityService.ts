@@ -1,11 +1,10 @@
-import { ApnsClient, Errors, Notification, NotificationOptions, Priority, PushType } from "apns2";
+import { Notification, NotificationOptions, Priority, PushType } from "apns2";
 import { Db } from "../Db";
 import { Config } from "../models/Config";
 import { GameStatus } from "../models/Game";
 import { EventType, GameEvent, PenaltyInfo } from "../models/GameEvent";
 import { User } from "../models/User";
 import { GameReport, getStatusFromGameReport } from "./GameReportService";
-const fs = require('fs')
 
 interface LiveActivityEntry {
     game_uuid: string
@@ -35,39 +34,32 @@ enum UpdateType {
 
 class LiveActivityService {
     db: Db<Record<string, LiveActivityEntry[]>>
-    apns: ApnsClient
     getReport: (arg0: string) => Promise<GameReport | undefined>
     getEvents: (arg0: string) => Promise<GameEvent[]>
     getUser: (arg0: string) => User | undefined
+    push: (notifications: Notification[]) => Promise<(Notification | {error: any})[]>
+
+    topic: string
 
     constructor(config: Config,
         getReport: (arg0: string) => Promise<GameReport | undefined>,
         getEvents: (arg0: string) => Promise<GameEvent[]>,
         getUser: (arg0: string) => User | undefined,
+        push: (notifications: Notification[]) => Promise<(Notification | {error: any})[]>,
     ) {
         this.db = new Db('live_activity', {})
-        var options: any = {
-            team: config.apn_team_id,
-            keyId: config.apn_key_id,
-            signingKey: fs.readFileSync(`${config.apn_key_path}`),
-            defaultTopic: config.apn_topic + '.push-type.liveactivity',
-            host: !config.production ? 'api.development.push.apple.com' : undefined,
-        }
-        this.apns = new ApnsClient(options)
-
-        this.apns.on(Errors.error, err => {
-            console.error('[LIVE] APNS Error', err)
-            this.unsubscribeWhere(e => e.token == err.notification.deviceToken)
-        })
 
         this.getReport = getReport
         this.getEvents = getEvents
         this.getUser = getUser
+        this.push = push
+        this.topic = config.apn_topic + '.push-type.liveactivity'
 
         this.onReport = this.onReport.bind(this)
         this.sendNotifications = this.sendNotifications.bind(this)
         this.getNotification = this.getNotification.bind(this)
         this.onEvent = this.onEvent.bind(this)
+        this.onError = this.onError.bind(this)
         this.subscribe = this.subscribe.bind(this)
         this.unsubscribe = this.unsubscribe.bind(this)
         this.unsubscribeWhere = this.unsubscribeWhere.bind(this)
@@ -130,12 +122,19 @@ class LiveActivityService {
         return entries.map(e => e.user_id)
     }
 
+    onError(err: any) {
+        if (err.notification.pushType == PushType.liveactivity) {
+            console.error('[LIVE] APNS Error', err)
+            this.unsubscribeWhere(e => e.token == err.notification.deviceToken)
+        }
+    }
+
     private async sendNotifications(notifications: Notification[]) {
         if (notifications.length == 0) {
             return
         }
         try {
-            await this.apns.sendMany(notifications)
+            await this.push(notifications)
             console.log(`[LIVE] Sent liveactivity to ${notifications.length} devices`)
         } catch (e) {
             console.error('[LIVE] Error:', e)
@@ -157,6 +156,7 @@ class LiveActivityService {
         const should_alert = update_type == UpdateType.Event && (game_event?.shouldNotify() ?? false)
         
         const options: NotificationOptions = {
+            topic: this.topic,
             type: PushType.liveactivity, 
             expiration: now + 3600,
             collapseId: entry.game_uuid,

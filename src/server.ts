@@ -20,6 +20,8 @@ import { FileAppend } from './services/FileAppend'
 import { GameReportService } from './services/GameReportService'
 import { PlayerService } from './services/PlayerService'
 import { LiveActivityService } from './services/LiveActivityService'
+import { ApnsClient, Errors } from 'apns2'
+const fs = require('fs')
 
 const config: Config = require(`${process.cwd()}/${process.argv[2]}`)
 require('events').EventEmitter.defaultMaxListeners = config.max_listeners || 100
@@ -51,9 +53,22 @@ const playerService = new PlayerService(
    seasonServices[currentSeason].getDecorated,
    statsService.getFromCache)
 
-const notifier = new Notifier(config)
-notifier.setOnError(userService.handleNotificationError)
-const liveActivityService = new LiveActivityService(config, gameReportService.read, wsEventService.read, userService.readCached)
+var options: any = {
+   team: config.apn_team_id,
+   keyId: config.apn_key_id,
+   defaultTopic: config.apn_topic,
+   signingKey: fs.readFileSync(`${config.apn_key_path}`),
+   host: !config.production ? 'api.development.push.apple.com' : undefined,
+}
+const apns = new ApnsClient(options)
+
+const notifier = new Notifier(config, e => apns.sendMany(e))
+const liveActivityService = new LiveActivityService(config, gameReportService.read, wsEventService.read, userService.readCached, e => apns.sendMany(e))
+
+apns.on(Errors.error, (err: any) => {
+   console.log(`[SERVER] APNS Error ${err.reason} for ${err.notification.deviceToken}`)
+   liveActivityService.onError(err)
+})
 
 const socket = new ShlSocket(config.shl_socket_path)
 const middleware = new SocketMiddleware(seasonServices[currentSeason], wsEventService, gameReportService, statsService)

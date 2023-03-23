@@ -31,7 +31,6 @@ const seasonService = new MockedSeasonService()
 const userService = new UserService()
 const gameReportService = new GameReportService()
 const wsEventService = new WsEventService()
-const liveActivityService = new LiveActivityService(getConfig(), gameReportService.read, wsEventService.read, userService.readCached)
 
 jest.mock('../src/services/SeasonService')
 const socket = new ShlSocket('hejsan')

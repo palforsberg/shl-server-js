@@ -10,7 +10,6 @@ class UserService {
         this.addUser = this.addUser.bind(this)
         this.read = this.read.bind(this)
         this.readCached = this.readCached.bind(this)
-        this.handleNotificationError = this.handleNotificationError.bind(this)
     }
 
     addUser(user: User): Promise<User[]> {
@@ -31,10 +30,6 @@ class UserService {
 
     readCached(user_id: string): User | undefined {
         return this.db.readCached().find(e => e.id == user_id)
-    }
-
-    handleNotificationError(error: Errors, token: string) {
-        console.log(`[USER] NotificationError ${error} for ${token}`)
     }
 }
 

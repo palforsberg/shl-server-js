@@ -1,5 +1,8 @@
 import { randomInt } from "crypto"
+import { stat } from "fs"
+import { getStatusFromPeriod } from "../services/GameReportService"
 import { TeamsService } from "../services/TeamsService"
+import { GameStatus } from "./Game"
 import { GameStats, Player } from "./GameStats"
 
 enum EventType {
@@ -234,19 +237,14 @@ class GameEvent {
     }
 
     getTimeInfo(): string {
-        switch (this.info.periodNumber) {
-          case 99:
-            return 'Straffar'
-          case 4:
-            return `Övertid ${this.gametime}`
-          case 3:
-            return `P3 ${this.gametime}`
-          case 2:
-            return `P2 ${this.gametime}`
-          case 1:
-            return `P1 ${this.gametime}`
-          default:
-            return this.gametime
+        const status = getStatusFromPeriod(this.info.periodNumber)
+        switch (status) {
+          case GameStatus.Shootout: return 'Straffar'
+          case GameStatus.Overtime: return `Övertid ${this.gametime}`
+          case GameStatus.Period3: return `P3 ${this.gametime}`
+          case GameStatus.Period2: return `P2 ${this.gametime}`
+          case GameStatus.Period1: return `P1 ${this.gametime}`
+          default: return this.gametime
         }
     }
 
@@ -296,22 +294,6 @@ class GameEvent {
             homeResult: game.getHomeResult(),
             awayResult: game.getAwayResult(),
             periodNumber: game.getCurrentPeriodNumber(),
-        }
-    }
-
-    static getPeriodFormatted(period: number): string {
-        switch (period) {
-          case 99:
-            return 'efter straffar'
-          case 4:
-            return 'i övertid'
-          case 3:
-            return 'i 3:e perioden'
-          case 2:
-            return 'i 2:a perioden'
-          case 1:
-          default:
-            return 'i 1:a perioden'
         }
     }
 }

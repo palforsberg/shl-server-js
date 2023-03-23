@@ -2,7 +2,7 @@
  * Stats of a single game.
  */
 
-import { GameReport } from "../services/GameReportService"
+import { GameReport, getStatusFromPeriod } from "../services/GameReportService"
 import { GameStatus } from "./Game"
 import { GameEvent } from "./GameEvent"
 
@@ -123,7 +123,6 @@ class GameStats extends GameStatsIf {
         this.getHomePlayers = this.getHomePlayers.bind(this)
         this.getAwayPlayers = this.getAwayPlayers.bind(this)
         this.getPlayersForTeam = this.getPlayersForTeam.bind(this)
-        this.getCurrentPeriodFormatted = this.getCurrentPeriodFormatted.bind(this)
         this.getCurrentPeriod = this.getCurrentPeriod.bind(this)
         this.getCurrentPeriodNumber = this.getCurrentPeriodNumber.bind(this)
     }
@@ -192,23 +191,6 @@ class GameStats extends GameStatsIf {
       return this.getPlayersForTeam(this.getAwayTeamId())
     }
 
-    getCurrentPeriodFormatted(): string {
-      const p = this.getCurrentPeriodNumber()
-      switch (p) {
-        case 99:
-          return 'straffar'
-        case 4:
-          return 'övertid'
-        case 3:
-          return '3:e perioden'
-        case 2:
-          return '2:a perioden'
-        case 1:
-        default:
-          return '1:a perioden'
-      }
-    }
-
     getCurrentPeriod(): PeriodStats | undefined {
       if (!this.recaps) {
         return undefined
@@ -236,20 +218,7 @@ class GameStats extends GameStatsIf {
       if (!this.isLive()) {
         return GameStatus.Coming
       }
-      var period = this.getCurrentPeriodNumber()
-      switch (period) {
-        case 99:
-          return GameStatus.Shootout
-        case 4:
-          return GameStatus.Overtime
-        case 3:
-          return GameStatus.Period3
-        case 2:
-          return GameStatus.Period2
-        case 1:
-        default:
-          return GameStatus.Period1
-      }
+      return getStatusFromPeriod(this.getCurrentPeriodNumber())
     }
 
     private getPlayersForTeam(team?: string): Player[] {
